@@ -8,8 +8,13 @@
  **********************************************/
 
 #[derive(Debug)]
-pub enum Erros {
-    pub enum ParserErrors {
-        GetNameError(String)
-    }
+pub enum Errors {
+    //common errors
+    StdIOError(String),
+    StdFileError(String),
+    Null, //Just to avoid Option
+
+    //parser errors
+    GetNameError(String),
+    UnkownCharError(String),
 }
