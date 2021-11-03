@@ -8,20 +8,27 @@
  **********************************************/
 
 pub trait Object {
-    fn add<T: Object>(&mut self, x: &T) -> T;
-    fn sub<T: Object>(&mut self, x: &T) -> T;
-    fn mul<T: Object>(&mut self, x: &T) -> T;
-    fn div<T: Object>(&mut self, x: &T) -> T;
-    fn module<T: Object>(&mut self, x: &T) -> T;
+    //fn get_klass(&self) -> Option<*const Klass>;
 
-    fn greater<T: Object>(&self, x: &T) -> T;
-    fn less<T: Object>(&self, x: &T) -> T;
-    fn equal<T: Object>(&self, x: &T) -> T;
-    fn not_equal<T: Object>(&self, x: &T) -> T;
-    fn le<T: Object>(&self, x: &T) -> T;
-    fn ge<T: Object>(&self, x: &T) -> T;
-    fn subscr<T: Object>(&self, x: &T) -> T;
-    fn contains<T: Object>(&self, x: &T) -> T;
+    fn add(&self, _rhs: &dyn Object) -> Option<Box<dyn Object>> {
+        None
+    }
 
-    fn len<T: Object>(&self) -> T;
+    fn sub(&self, _rhs: &dyn Object) -> Option<Box<dyn Object>> {
+        None
+    }
+/*    fn mul<T: Object+Clone>(&mut self, x: &T) -> Box<T>*/
+    /*fn div<T: Object+Clone>(&mut self, x: &T) -> Box<T>*/
+    /*fn module<T: Object+Clone>(&mut self, x: &T) -> Box<T>*/
+
+    /*fn greater<T: Object+Clone>(&self, x: &T) -> Box<T>*/
+    /*fn less<T: Object+Clone>(&self, x: &T) -> Box<T>*/
+    /*fn equal<T: Object+Clone>(&self, x: &T) -> Box<T>*/
+    /*fn not_equal<T: Object+Clone>(&self, x: &T) -> Box<T>*/
+    /*fn le<T: Object+Clone>(&self, x: &T) -> Box<T>*/
+    /*fn ge<T: Object+Clone>(&self, x: &T) -> Box<T>*/
+/*    fn subscr<T: Object+Clone>(&self, x: &T) -> Box<T>*/
+    /*fn contains<T: Object+Clone>(&self, x: &T) -> Box<T>*/
+
+    /*fn len<T: Object+Clone>(&self) -> Box<T>*/
 }

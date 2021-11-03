@@ -11,7 +11,7 @@ use super::object::Object;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Integer {
-    val: i32
+    val: i32,
 }
 
 impl Integer {
@@ -19,38 +19,27 @@ impl Integer {
         self.val
     }
 
-    pub fn new(val: i32) -> Self {
-        Integer {
-            val
+    pub fn new(val: i32) -> Box<dyn Object> {
+        Box::new(Integer {val})
+    }
+
+    fn get_ref<'a>(_rhs: &'a dyn Object) -> &'a Self {
+        let _rhs_p = _rhs as *const _ as *const Self;
+        unsafe {
+            &(*_rhs_p)
         }
     }
 }
 
 impl Object for Integer {
-    pub fn add(&self, x: Integer) -> Integer {
-        Integer {
-            val: self.val + x.get()
-        }
+    fn add(&self, _rhs: &dyn Object) -> Option<Box<dyn Object>> {
+        let _rhs_ref = Self::get_ref(_rhs);
+        Some(Self::new(self.val + _rhs_ref.get()))
     }
 
-    pub fn sub(&self, x: Integer) -> Integer {
-        Integer {
-            val: self.val - x.get()
-        }
-    }
-
-    pub fn mul(&self, x: Integer) -> Integer {
-        Integer {
-            val: self.val * x.get()
-        }
-    }
-
-    pub fn div(&self, x: Integer) -> Integer {
-        if x.get() == 0 {
-            panic!("divide by zero");
-        }
-        Integer {
-            val: self.val / x.get()
-        }
+    fn sub(&self, _rhs: &dyn Object) -> Option<Box<dyn Object>> {
+        let _rhs_ref = Self::get_ref(_rhs);
+        Some(Self::new(self.val - _rhs_ref.get()))
     }
 }
+
