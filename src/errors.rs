@@ -12,6 +12,7 @@ pub enum Errors {
     //common errors
     StdIOError(String),
     StdFileError(String),
+    Utf8Error(String),
     Null, //Just to avoid Option
 
     //parser errors

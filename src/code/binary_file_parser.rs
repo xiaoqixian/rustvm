@@ -9,30 +9,38 @@
 
 use crate::errors::Errors;
 use crate::util::buffered_input_stream::BufferedInputStream;
-use crate::object::object::Object;
-use crate::object::integer::Integer;
-use crate::object::string::Str;
+use crate::objects::object::Object;
+use crate::objects::integer::Integer;
+use crate::objects::string::Str;
+use crate::objects;
 
 pub struct CodeObject {
-    argcount: i32,
-    nlocals: i32,
-    stacksize: i32,
-    flag: i32,
-    bytecodes: Vec<u8>,
-    consts: Vec<dyn Object>,
-    names: Vec<dyn Object>,
-    varnames: Vec<dyn Object>,
-    freevars: Vec<dyn Object>,
-    cellvars: Vec<dyn Object>,
-    file_name: Str,
-    co_name: Str,
-    line_number: Integer,
-    notable: Str
+    pub argcount: i32,
+    pub nlocals: i32,
+    pub stacksize: i32,
+    pub flags: i32,
+    pub bytecodes: Box<Str>,
+    pub consts: Vec<Box<dyn Object>>,
+    pub names: Vec<Box<dyn Object>>,
+    pub var_names: Vec<Box<dyn Object>>,
+    pub free_vars: Vec<Box<dyn Object>>,
+    pub cell_vars: Vec<Box<dyn Object>>,
+    pub file_name: Box<Str>,
+    pub co_name: Box<Str>,
+    pub line_number: i32,
+    pub notable: Box<Str>
+}
+
+impl Object for CodeObject {
+    fn print(&self) {
+        println!("CodeObject {{\nargcount: {}", self.argcount);
+        println!("nlocals: {}", self.nlocals);
+    }
 }
 
 pub struct BinaryFileParser {
     cur: i32,
-    string_table: Vec<Str>,//to save the strings so we can unread
+    string_table: Vec<Box<Str>>,//to save the strings so we can unread
     bis: BufferedInputStream
 }
 
@@ -40,20 +48,20 @@ impl BinaryFileParser {
     pub fn new(bis: BufferedInputStream) -> Self {
         BinaryFileParser {
             cur: 0,
-            string_table: Vec::new(),
+            string_table: Vec::new(),//for traceback.
             bis
         }
     }
 
-    pub fn get_bytecodes(&mut self) -> Result<Str, Errors> {
+    pub fn get_bytecodes(&mut self) -> Result<Box<Str>, Errors> {
         assert_eq!(self.bis.read_char()?, 's');
         
         self.get_string()
     }
 
-    pub fn get_string(&mut self) -> Result<Str, Errors> {
+    pub fn get_string(&mut self) -> Result<Box<Str>, Errors> {
         let mut length = self.bis.read_int()?;
-        let mut res = Str::new();
+        let mut res = objects::cast_box::<Str, dyn Object>(Str::new());
         
         while length > 0 {
             res.push(self.bis.read_char()?);
@@ -61,7 +69,8 @@ impl BinaryFileParser {
         Ok(res)
     }
 
-    pub fn get_name(&mut self) -> Result<Str, Errors> {
+    //get variable name
+    pub fn get_name(&mut self) -> Result<Box<Str>, Errors> {
         let c = self.bis.read_char()?;
         
         if c == 's' {
@@ -78,11 +87,11 @@ impl BinaryFileParser {
         Err(Errors::UnkownCharError(String::from(c)))
     }
 
-    pub fn get_filename(&mut self) -> Result<Str, Errors> {
+    pub fn get_file_name(&mut self) -> Result<Box<Str>, Errors> {
         self.get_name()
     }
 
-    pub fn get_no_table(&mut self) -> Result<Str, Errors> {
+    pub fn get_no_table(&mut self) -> Result<Box<Str>, Errors> {
         let c = self.bis.read_char()?;
         if c != 's' && c != 't' {
             return Err(Errors::Null);
@@ -91,7 +100,7 @@ impl BinaryFileParser {
         self.get_string()
     }
 
-    pub fn parse<T: Object<T> + Clone>(&mut self) -> Result<CodeObject<T>, Errors> {
+    pub fn parse(&mut self) -> Result<Box<CodeObject>, Errors> {
         let magic_number = self.bis.read_int()?;
         println!("magic number: {:#x}", magic_number);
         let moddate = self.bis.read_int()?;
@@ -105,16 +114,16 @@ impl BinaryFileParser {
         }
     }
 
-    pub fn get_tuple<T: Object<T> + Clone>(&mut self) -> Result<Vec<*mut T>, Errors> {
+    pub fn get_tuple(&mut self) -> Result<Vec<Box<dyn Object>>, Errors> {
         let length = self.bis.read_int()?;
-        let mut list: Vec<*mut T> = Vec::new();
+        let mut list: Vec<Box<dyn Object>> = Vec::new();
         
         for i in 0..length {
             let c = self.bis.read_char()?;
             
             match c {
-                'c' => {list.push(Box::into_raw(Box::new(self.get_codeobject()?)));},
-                'i' => {list.push(Box::into_raw(Box::new(Integer::new(self.bis.read_int()?))));},
+                'c' => list.push(self.get_codeobject()?),
+                'i' => list.push(Integer::new(self.bis.read_int()?)),
                 _ => {
                     return Err(Errors::UnkownCharError(String::from(c)));
                 }
@@ -123,15 +132,81 @@ impl BinaryFileParser {
         Ok(list)
     }
 
-    /*pub fn get_codeobject<T: Object + Clone>(&mut self) -> Result<CodeObject<T>, Errors> {*/
-        /*let argcount = self.bis.read_int()?;*/
-        /*let nlocals = self.bis.read_int()?;*/
-        /*let stacksize = self.bis.read_int()?;*/
-        /*let flgs = self.bis.read_int()?;*/
+    pub fn get_consts(&mut self) -> Result<Vec<Box<dyn Object>>, Errors> {
+        if self.bis.read_char()? == '(' {
+            return self.get_tuple()
+        }
+        self.bis.unread();
+        Err(Errors::Null)
+    }
+
+    pub fn get_names(&mut self) -> Result<Vec<Box<dyn Object>>, Errors> {
+        if self.bis.read_char()? == '(' {
+            return self.get_tuple();
+        }
+        self.bis.unread();
+        Err(Errors::Null)
+    }
+
+    pub fn get_var_names(&mut self) -> Result<Vec<Box<dyn Object>>, Errors> {
+        if self.bis.read_char()? == '(' {
+            return self.get_tuple();
+        }
+        self.bis.unread();
+        Err(Errors::Null)
+    }
+
+    pub fn get_free_vars(&mut self) -> Result<Vec<Box<dyn Object>>, Errors> {
+        if self.bis.read_char()? == '(' {
+            return self.get_tuple();
+        }
+        self.bis.unread();
+        Err(Errors::Null)
+    }
+
+    pub fn get_cell_vars(&mut self) -> Result<Vec<Box<dyn Object>>, Errors> {
+        if self.bis.read_char()? == '(' {
+            return self.get_tuple();
+        }
+        self.bis.unread();
+        Err(Errors::Null)
+    }
+    
+    pub fn get_codeobject(&mut self) -> Result<Box<CodeObject>, Errors> {
+        let argcount = self.bis.read_int()?;
+        let nlocals = self.bis.read_int()?;
+        let stacksize = self.bis.read_int()?;
+        let flags = self.bis.read_int()?;
         
-        /*let bytecodes = self.get_bytecodes()?;*/
-        /*Err(Errors::Null)*/
-    /*}*/
+        let bytecodes = self.get_bytecodes()?;
+        let consts = self.get_consts()?;
+        let names = self.get_names()?;
+        let var_names = self.get_var_names()?;
+        let free_vars = self.get_free_vars()?;
+        let cell_vars = self.get_cell_vars()?;
+        
+        let file_name = self.get_file_name()?;
+        let module_name = self.get_name()?;
+        let begin_line_no = self.bis.read_int()?;
+        let line_no_table = self.get_no_table()?;
+
+        Ok(Box::new(CodeObject {
+            argcount: argcount,
+            nlocals: nlocals,
+            stacksize: stacksize,
+            flags: flags,
+            bytecodes: bytecodes,
+            consts: consts,
+            names: names,
+            var_names: var_names,
+            free_vars: free_vars,
+            cell_vars: cell_vars,
+            file_name: file_name,
+            co_name: module_name,
+            line_number: begin_line_no,
+            notable: line_no_table
+        }))
+    }
 }
 
     
