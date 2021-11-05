@@ -7,105 +7,122 @@
   > Copyright@ https://github.com/xiaoqixian
  **********************************************/
 
+#[warn(unused_imports)]
 use crate::objects::{object::Object, integer::Integer, string::Str};
 use crate::objects;
 use crate::code::binary_file_parser::CodeObject;
 use std::collections::HashMap;
-use crate::code::ByteCode;
+use crate::code::{byte_code, get_op};
 
 pub struct Interpreter {
-    _stack: Vec<Box<dyn Object>>,
-    _consts: Vec<Box<dyn Object>>,
-    _loop_stack: Vec<Box<dyn Object>>
+    _stack: Vec<*mut dyn Object>,
+    _loop_stack: Vec<*mut dyn Object>
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             _stack: Vec::new(),
-            _consts: Vec::new(),
             _loop_stack: Vec::new()
         }
     }
 
     pub fn run(&mut self, codes: Box<CodeObject>) {
         let mut pc: usize = 0;//program counter
-        let mut code_length = codes.bytecodes.len();
-        let names = &mut codes.names;
-        let locals: HashMap<*mut dyn Object, *mut dyn Object> = HashMap::new();//K:locals names, V: locals values.
+        let code_length = codes.bytecodes.len();
+        let names:&Vec<*mut dyn Object> = &codes.names;
+        let consts = &codes.consts;
+        let mut locals: HashMap<*mut dyn Object, *mut dyn Object> = HashMap::new();//K:locals names, V: locals values.
+        let mut op_code: u8;
+        let mut op_arg = -1;
 
         //let mut b: Box<Block>;
+        print!("bytecodes: ");
+        codes.bytecodes.print_vec_hex();
         
         while pc < code_length {
-            let op_code:u8 = codes.bytecodes[pc];
+            op_code = codes.bytecodes[pc];
             pc += 1;
-            let has_argument = (op_code & 0xff) >= ByteCode::HAVE_ARGUMENT;
+            let has_argument = (op_code & 0xff) >= byte_code::HAVE_ARGUMENT;
 
-            let op_arg:i32 = -1;//op_arg of this op_code
+            op_arg = -1;//op_arg of this op_code
             if has_argument {
                 let byte1:i32 = (codes.bytecodes[pc] & 0xff) as i32;
                 pc += 1;
-                op_arg = ((codes.bytecodes[pc] & 0xff) << 8) as i32 | byte1;
+                op_arg = (((codes.bytecodes[pc] & 0xff) as i32) << 8) | byte1;
+                pc += 1;
             }
-            println!("op_arg: {}", op_arg);
+            println!("op: {:?}, op_code: {:x}, op_arg: {:x}", get_op(op_code).unwrap(), op_code, op_arg);
 
-            let v: &Box<dyn Object>;
-            let w: &Box<dyn Object>;
-            let u: &Box<dyn Object>;
-            let attr: &Box<dyn Object>;
-            let b1: Box<dyn Object>;//for pop
-            let b2: Box<dyn Object>;//for pop
+/*            let v: &*mut dyn Object;*/
+            /*let w: &*mut dyn Object;*/
+            /*let u: &*mut dyn Object;*/
+            /*let attr: &*mut dyn Object;*/
+            let b1: &dyn Object;
+            let b2: &dyn Object;
             let p1: *mut dyn Object;
             let p2: *mut dyn Object;
             match op_code {
-                ByteCode::LOAD_CONST => self._stack.push(self._consts[op_code as usize].clone()),
+                byte_code::LOAD_CONST => self._stack.push(consts[op_arg as usize].clone()),//reference can be directly cloned.
                 
-                ByteCode::LOAD_NAME => {
-                    p1 = &mut names[op_arg as usize] as *mut _;
-                    w = match locals.get(p1) {
+                byte_code::LOAD_NAME => {
+                    p1 = names[op_arg as usize];
+                    p2 = match locals.get(&p1) {
                         None => {
-                            v.print();
+                            match unsafe {p1.as_ref()} {
+                                None => {println!("op_arg {} represents a null pointer", op_arg);},
+                                Some(r) => {r.print();}
+                            }
                             panic!("Not found in locals");
                         },
-                        Some(s) => objects::as_box::<dyn Object>(s)
+                        Some(s) => {
+                            //s: &*mut dyn Object
+                            *s
+                        }
                     };
-                    self._stack.push(w.clone());
+                    self._stack.push(p2);
                 }
 
-                ByteCode::STORE_NAME => {
-                    v = &names[op_arg as usize];
-                    p1 = objects::box_clone_ptr::<dyn Object>(v);
+                byte_code::STORE_NAME => {
+                    p1 = names[op_arg as usize];
                     p2 = match self._stack.pop() {
                         None => {
                             panic!("empty stack");
                         },
-                        Some(s) => Box::into_raw(s)
+                        Some(s) => s
                     };
                     locals.insert(p1, p2);
                 }
 
-                ByteCode::PRINT_ITEM => {
-                    b1 = match self._stack.pop() {
+                byte_code::PRINT_ITEM => {
+                    p1 = match self._stack.pop() {
                         None => {panic!("empty stack");},
                         Some(s) => s 
                     };
-                    b1.print();
+                    match unsafe {p1.as_ref()} {
+                        None => {panic!("print null item");},
+                        Some(r) => {r.print();}
+                    }
                 }
 
-                ByteCode::PRINT_NEWLINE => {
+                byte_code::PRINT_NEWLINE => {
                     println!("\n");
                 }
 
-                ByteCode::BINARY_ADD => {
-                    b1 = match self._stack.pop() {
+                byte_code::BINARY_ADD => {
+                    p1 = match self._stack.pop() {
                         None => {panic!("empty stack");},
                         Some(s) => s 
                     };
-                    b2 = match self._stack.pop() {
+                    p2 = match self._stack.pop() {
                         None => {panic!("empty stack");},
                         Some(s) => s 
                     };
-                    self._stack.push(match b1.add(b2.as_ref()) {
+                    b1 = match unsafe {p1.as_ref()} {
+                        None => {panic!("p1 null pointer");},
+                        Some(r) => r
+                    };
+                    self._stack.push(match b1.add(p2 as *const _) {
                         None => {
                             panic!("type doesn't impl add");
                         },
@@ -113,7 +130,7 @@ impl Interpreter {
                     });
                 }
 
-                ByteCode::RETURN_VALUE => {
+                byte_code::RETURN_VALUE => {
                     self._stack.pop();
                 }
 

@@ -42,6 +42,7 @@ impl BufferedInputStream {
                         return Err(Errors::StdIOError(format!("{:?}", e)));
                     }
                 };
+                println!("read {} bytes data", bytes);
                 temp
             },
             index: 0 as usize,
@@ -68,6 +69,7 @@ impl BufferedInputStream {
 
     pub fn read_char(&mut self) -> Result<char, Errors> {
         let temp = self.read()?;
+        assert!(temp < 128,"{}", format!("read char out of ascii:{}, with index: {}", temp, self.index));
         Ok(temp as char)
     }
 
@@ -78,6 +80,7 @@ impl BufferedInputStream {
         let d = self.read()? as i32;
 
         let i = d<<24 | c<<16 | b<<8 | a;
+        println!("read an int, self.index: {}", self.index);
         Ok(i)
     }
 

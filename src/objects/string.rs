@@ -17,7 +17,7 @@ pub struct Str {
 }
 
 impl Str {
-    pub fn from(s: &str) -> Box<dyn Object> {
+    pub fn from(s: &str) -> Box<Str> {
         Box::new(Str {
             val: {
                 let mut v = Vec::new();
@@ -29,26 +29,34 @@ impl Str {
         })
     }
 
-    pub fn new() -> Box<dyn Object> {
+    pub fn new() -> Box<Str> {
         Box::new(Str {val: Vec::new()})
     }
 
     pub fn push(&mut self, c: char) {
         match c.len_utf8() {
             1 => self.val.push(c as u8),
-            _ => {panic!("Doesn't support char out of ASCII");}
+            _ => {panic!("Doesn't support char out of ASCII: {}", c);}
         }
     }
 
     pub fn get<'a>(&'a self) -> Result<&'a str, Errors> {
         match std::str::from_utf8(self.val.as_slice()) {
             Ok(v) => Ok(v),
-            Err(e) => Err(Errors::Utf8Error(format!("{:?}", self.val)))
+            Err(_) => Err(Errors::Utf8Error(format!("{:?}", self.val)))
         }
     }
 
     pub fn len(&self) -> usize {
         self.val.len()
+    }
+
+    pub fn print_vec_hex(&self) {
+        print!("[");
+        for v in self.val.iter() {
+            print!("{:x} ", v);
+        }
+        println!("]");
     }
 }
 

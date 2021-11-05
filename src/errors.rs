@@ -17,5 +17,5 @@ pub enum Errors {
 
     //parser errors
     GetNameError(String),
-    UnkownCharError(String),
+    UnknownCharError(String),
 }

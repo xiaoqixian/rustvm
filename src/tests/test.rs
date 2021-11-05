@@ -8,7 +8,7 @@
  **********************************************/
 
 pub trait Object {
-    fn sub(&self, x: &dyn Object) -> Option<Box<dyn Object>> {
+    fn sub(&self, x: *mut dyn Object) -> Option<*mut dyn Object> {
         None
     }
 }
@@ -32,19 +32,19 @@ impl Integer {
     fn new(v: i32) -> Box<Integer> {
         Box::new(Self {val: v})
     }
-}
 
-impl Object for Integer {
-    fn sub(&self, rhs: &dyn Object) -> Option<Box<dyn Object>> {
-        let x = unsafe {
-            let p = rhs as *const _ as *const Integer;
-            &(*p)
-        };
-        Some(Int::new(self.get() - x.get()))
+    fn set(&mut self, v: i32) {
+        self.val = v;
     }
 }
 
-impl Eat for Integer {}
+impl Object for Integer {
+    fn sub(&self, rhs: *mut dyn Object) -> Option<*mut dyn Object> {
+        None
+    }
+}
+
+/*impl Eat for Integer {}*/
 
 #[derive(Debug)]
 pub struct Int {
@@ -62,41 +62,27 @@ impl Int {
 }
 
 impl Object for Int {
-    fn sub(&self, rhs: &dyn Object) -> Option<Box<dyn Object>> {
-        let x = unsafe {
-            let p = rhs as *const _ as *const Int;
-            &(*p)
-        };
-        Some(Int::new(self.get() - x.get()))
+    fn sub(&self, rhs: *mut dyn Object) -> Option<*mut dyn Object> {
+        None
     }
 }
 
-#[derive(Debug)]
-pub struct Nums {
-    num: Box<Integer>
-}
+/*#[derive(Debug)]*/
+/*pub struct Nums {*/
+    /*num: Box<Integer>*/
+/*}*/
 
-impl Nums {
-    pub fn new(num: Box<Integer>) -> Box<Self> {
-        Box::new(Self {num})
-    }
-}
+/*impl Nums {*/
+    /*pub fn new(num: Box<Integer>) -> Box<Self> {*/
+        /*Box::new(Self {num})*/
+    /*}*/
+/*}*/
 
-fn func(p: *mut dyn Object) {
-    unsafe {
-        let b = Box::from_raw(p);
-    }
-}
 
 fn main() {
-    let a = Integer::new(1);
-    let pa1 = Box::into_raw(a);
-    let pa2 = pa1;
-    unsafe {
-        println!("{:?}", (*pa2).get());
-    }
-    func(pa1);
-    unsafe {
-        println!("{:?}", (*pa2).get());
-    }
+    let a = 0 as *mut Integer;
+    let b = 0 as *mut Int;
+    let c = a as *mut dyn Object;
+    let d = b as *mut dyn Object;
+    assert_ne!(c, d);
 }

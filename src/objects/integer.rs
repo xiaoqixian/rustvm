@@ -19,24 +19,38 @@ impl Integer {
         self.val
     }
 
-    pub fn new(val: i32) -> Box<dyn Object> {
+    pub fn new(val: i32) -> Box<Self> {
         Box::new(Integer {val})
+    }
+
+    pub fn new_ptr(val: i32) -> *mut Self {
+        Box::into_raw(Self::new(val))
     }
 }
 
 impl Object for Integer {
     fn print(&self) {
-        println!("{}", self.val);
+        colour::red_ln!("{}", self.val);
     }
 
-    fn add(&self, _rhs: &dyn Object) -> Option<Box<dyn Object>> {
-        let _rhs_ref = super::as_ref::<Self>(_rhs);
-        Some(Self::new(self.val + _rhs_ref.get()))
+    fn add(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+        let _rhs_ref:&Self = unsafe {
+            match _rhs.cast::<Self>().as_ref() {
+                None => {return None;},
+                Some(r) => r
+            }
+        };
+        Some(Self::new_ptr(self.val + _rhs_ref.get()))
     }
 
-    fn sub(&self, _rhs: &dyn Object) -> Option<Box<dyn Object>> {
-        let _rhs_ref = super::as_ref::<Self>(_rhs);
-        Some(Self::new(self.val - _rhs_ref.get()))
+    fn sub(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+        let _rhs_ref:&Self = unsafe {
+            match _rhs.cast::<Self>().as_ref() {
+                None => {return None;},
+                Some(r) => r
+            }
+        };
+        Some(Self::new_ptr(self.val - _rhs_ref.get()))
     }
 }
 
