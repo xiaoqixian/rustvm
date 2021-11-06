@@ -14,10 +14,21 @@ pub mod string;
 
 pub mod statics {
     use super::integer::Integer;
-    use super::object::{Object};
-    pub const PY_NONE:*mut dyn Object = {
-        let p = 0 as *mut Integer;
-        p as *mut dyn Object
+    use super::object::{*};
+
+    const PY_NONE_INSTANCE: PyNone = PyNone {};
+    pub const PY_NONE: *mut dyn Object = {
+        &PY_NONE_INSTANCE as *const PyNone as *mut PyNone as *mut dyn Object 
+    };
+    
+    const TRUE_INSTANCE: PyTrue = PyTrue {val: 1};
+    pub const TRUE:*mut dyn Object = {
+        &TRUE_INSTANCE as *const PyTrue as *mut PyTrue as *mut dyn Object
+    };
+
+    const FALSE_INSTANCE: PyFalse = PyFalse {val:0};
+    pub const FALSE:*mut dyn Object = {
+        &FALSE_INSTANCE as *const PyFalse as *mut PyFalse as *mut dyn Object
     };
 }
 

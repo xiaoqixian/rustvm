@@ -81,18 +81,18 @@ pub mod byte_code {
 
     pub const CALL_FUNCTION_VAR:u8 = 140;
 
-    pub enum COMPARE {
-        LESS = 0,
-        LessEqual,
-        Equal,
-        NotEqual,
-        Greater,
-        GreaterEqual,
-        In,
-        NotIn,
-        Is,
-        IsNot,
-        ExcMatch
+    pub mod compare {
+        pub const LESS:u8 = 0;
+        pub const LESS_EQUAL:u8 = 1;
+        pub const EQUAL:u8 = 2;
+        pub const NOT_EQUAL:u8 = 3;
+        pub const GREATER:u8 = 4;
+        pub const GREATER_EQUAL:u8 = 5;
+        pub const IN:u8 = 6;
+        pub const NOT_IN:u8 = 7;
+        pub const IS:u8 = 8;
+        pub const IS_NOT:u8 = 9;
+        pub const EXC_MATCH:u8 = 10;
     }
 }
 

@@ -6,8 +6,7 @@
 # > Location        : Shanghai
 # > Copyright@ https://github.com/xiaoqixian
 
-a = 1
-b = 2
-d = 3
-c = b + a + d
-print c
+def func():
+    print "hello world"
+
+func()

@@ -64,7 +64,7 @@ impl Object for Str {
     fn print(&self) {
         match self.get() {
             Ok(v) => {
-                println!("{}", v);
+                colour::blue_ln!("{}", v);
             }
             Err(e) => {
                 println!("{:?}", e);

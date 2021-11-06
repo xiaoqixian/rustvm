@@ -11,6 +11,10 @@ pub trait Object {
     fn sub(&self, x: *mut dyn Object) -> Option<*mut dyn Object> {
         None
     }
+
+    fn print(&self) {
+        println!("this item doesn't impl print");
+    }
 }
 
 pub trait Eat {
@@ -36,11 +40,19 @@ impl Integer {
     fn set(&mut self, v: i32) {
         self.val = v;
     }
+
+    fn new_stack(v: i32) -> Self {
+        Self {val: v}
+    }
 }
 
 impl Object for Integer {
     fn sub(&self, rhs: *mut dyn Object) -> Option<*mut dyn Object> {
         None
+    }
+
+    fn print(&self) {
+        println!("{}", self.val);
     }
 }
 
@@ -78,11 +90,62 @@ impl Object for Int {
     /*}*/
 /*}*/
 
+enum Fuck {
+    Less = 0,
+    Equal,
+    Greater
+}
+
+const Fuck: Integer = Integer {val: 1};
+const FuckP: *mut dyn Object = {
+    &Fuck as *const Integer as *mut Integer as *mut dyn Object
+};
+
+#[macro_export]
+macro_rules! unwrap_option {
+    ($op: expr, $error_op: stmt) => {{
+        match $op {
+            None => {$error_op},
+            Some(v) => v
+        }
+    }};
+}
+
+struct PyTrue {}
+
+impl Object for PyTrue {
+    fn print(&self) {
+        println!("True");
+    }
+}
+
+const TRUE_INSTANCE: PyTrue = PyTrue {};
+const TRUE:*mut dyn Object = &TRUE_INSTANCE as *const PyTrue as *mut PyTrue as *mut dyn Object;
+
+fn greater(a: i32, b: i32) -> Option<*mut dyn Object> {
+    if a > b {
+        Some(TRUE)
+    } else {
+        None
+    }
+}
+
+struct Ref<'a> {
+    i: i32,
+    I: &'a Integer
+}
+
+impl Ref<'a> {
+    pub fn new<'a>(ir: &'a Integer) -> Self<'a> {
+        Ref {
+            i: 0,
+            I: ir
+        }
+    }
+}
 
 fn main() {
-    let a = 0 as *mut Integer;
-    let b = 0 as *mut Int;
-    let c = a as *mut dyn Object;
-    let d = b as *mut dyn Object;
-    assert_ne!(c, d);
+    let a = Integer::new_stack(2);
+    let ra = Ref::new(&a);
+    a.print();
 }

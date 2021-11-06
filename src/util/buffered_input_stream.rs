@@ -80,7 +80,6 @@ impl BufferedInputStream {
         let d = self.read()? as i32;
 
         let i = d<<24 | c<<16 | b<<8 | a;
-        println!("read an int, self.index: {}", self.index);
         Ok(i)
     }
 

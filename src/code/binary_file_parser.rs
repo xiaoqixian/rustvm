@@ -138,6 +138,9 @@ impl BinaryFileParser {
                     list.push(Box::into_raw(s));
                     self.string_table.push(Box::into_raw(scp));
                 },
+                's' => {
+                    list.push(Box::into_raw(self.get_string()?));
+                },
                 _ => {
                     return Err(Errors::UnknownCharError(String::from(format!("{} at line {}", c, line!()))));
                 }
