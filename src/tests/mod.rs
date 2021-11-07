@@ -31,9 +31,9 @@ fn test1() {
     let path = String::from("/home/lunar/pros/rustvm/src/tests/test.pyc");
     let mut bis = BufferedInputStream::new(&path).unwrap();
     let mut parser = BinaryFileParser::new(bis);
-    let main_codes = unsafe {Box::from_raw(parser.parse().unwrap())};
-    let mut itp = Interpreter::new();
+    let main_codes = parser.parse().unwrap();
+    let mut itp = Interpreter::new(main_codes);
 /*    use crate::runtime::universe::Universe;*/
     /*Universe::genesis();*/
-    itp.run(main_codes);
+    itp.run();
 }

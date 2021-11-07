@@ -28,19 +28,26 @@ We define a `klass` type which implement singleton design pattern, which means o
 
 ### Function Object
 
-#### Frame Stack
+#### Frame
 
 When we call a function, we actually enter a new local environment, this environment essentially has no differences with the environment in which the function is called. 
 
-We call such an environment as a frame, and all frames are stored in a stack. When we call a function, we make a frame and push it into the stack. When we return from a function, we pop a frame from the stack.
+We call such an environment as a frame, when we call a function, we create a frame and enter it. Also, we need to store the frame that calls the new frame, so we can know which frame to return to when exit from the current frame.
 
 A frame should contain the following members:
 
 - stack: for operations
 - loop stack: for setting up loops
-- consts: vector, storing constants
-- names: vector\<string\>
-- locals: HashMap, key: string pointer, value: variable pointer.
-- codes: CodeObject of the function
+- locals: `HashMap`, key: string pointer, value: variable pointer.
+- codes: `CodeObject` of the function
 - pc: program counter
+- sender: `Box<Frame>`, the frame that called this frame. 
+
+#### Function Object
+
+As we already have `CodeObject`, why would we need a `FunctionObject` type?
+
+That's because a function has many dynamic information like parameters. These can't be stored in bytecodes, so we need to dynamically pass them in. 
+
+When we run into the `MAKE_FUNCTION` operation code, we just connect the function name with the function's bytecodes. The actual `FuntionObject` and the new frame are not created until with the `CALL_FUNCTION` operation code.
 

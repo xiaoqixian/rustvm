@@ -9,12 +9,24 @@
 
 use super::object::Object;
 use super::statics;
+use crate::as_ref;
 
 macro_rules! ptr_to_ref {
     ($ptr:ident) => {{
         unsafe {
             match $ptr.cast::<Self>().as_ref() {
                 None => {return None;},
+                Some(r) => r
+            }
+        }
+    }}
+}
+
+macro_rules! ptr_to_ref_no_ret {
+    ($ptr:ident) => {{
+        unsafe {
+            match $ptr.cast::<Self>().as_ref() {
+                None => {return ;},
                 Some(r) => r
             }
         }
@@ -67,6 +79,11 @@ impl Object for Integer {
             }
         };
         Some(Self::new_ptr(self.val - _rhs_ref.get()))
+    }
+
+    fn inplace_sub(&mut self, _rhs: *const dyn Object) {
+        let _rhs_ref = ptr_to_ref_no_ret!(_rhs);
+        self.val -= _rhs_ref.get();
     }
 
     fn mul(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {

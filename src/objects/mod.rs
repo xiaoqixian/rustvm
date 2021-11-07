@@ -10,10 +10,9 @@
 pub mod object;
 pub mod integer;
 pub mod string;
-//pub mod list;
+pub mod frame;
 
 pub mod statics {
-    use super::integer::Integer;
     use super::object::{*};
 
     const PY_NONE_INSTANCE: PyNone = PyNone {};

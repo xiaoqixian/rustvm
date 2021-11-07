@@ -17,15 +17,21 @@ pub trait Object {
     }
 }
 
+trait Build<T> {
+    fn new(para1: T) -> Option<*mut dyn Object> {
+        None
+    }
+}
+
 pub trait Eat {
     fn eat(&self) {
         println!("I'm fucking eat");
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Integer {
-    val: i32
+    pub val: i32
 }
 
 impl Integer {
@@ -53,6 +59,18 @@ impl Object for Integer {
 
     fn print(&self) {
         println!("{}", self.val);
+    }
+}
+
+impl Build<Integer> for Integer {
+    fn new(para: Integer) -> Option<*mut dyn Object> {
+        Some(Box::into_raw(Box::new(Integer {val:para.get()})))
+    }
+}
+
+impl Build<Int> for Integer {
+    fn new(para: Int) -> Option<*mut dyn Object> {
+        Some(Box::into_raw(Box::new(Integer {val: para.get()})))
     }
 }
 
@@ -132,20 +150,61 @@ fn greater(a: i32, b: i32) -> Option<*mut dyn Object> {
 
 struct Ref<'a> {
     i: i32,
-    I: &'a Integer
+    I: &'a mut Integer
 }
 
-impl Ref<'a> {
-    pub fn new<'a>(ir: &'a Integer) -> Self<'a> {
+impl<'a> Ref<'a> {
+    pub fn new(ir: *mut Integer) -> Self {
+        let irr = as_ref!(ir);
         Ref {
             i: 0,
-            I: ir
+            I: irr
         }
+    }
+
+    pub fn run(&mut self) {
+        println!("{}", self.I.get());
+        //let a = Box::into_raw(Integer::new(2));
+        let mut a = Integer {val: 2};
+        let pa = &mut a as *mut Integer;
+        self.I = as_ref!(pa);
+        println!("{}", self.I.get());
+    }
+
+    pub fn run_again(&self) {
+        println!("{}", self.I.get());
     }
 }
 
+struct Container {
+    pub v: Vec<*mut dyn Object>
+}
+
+struct Conta {
+    pub v: Vec<*mut dyn Object>,
+    pub vv: Vec<*mut dyn Object>
+}
+
+#[macro_export]
+macro_rules! as_ref {
+    ($ptr:ident) => {{
+        match unsafe {$ptr.as_mut()} {
+            None => {panic!("null pointer: {:?}", stringify!($ptr));},
+            Some(r) => r
+        }
+    }};
+    ($self:ident, $field:ident) => {{
+        match unsafe {$self.$ptr.as_mut()} {
+            None => {panic!("null pointer: {:?}", stringify!($self.$field));},
+            Some(r) => r
+        }
+    }}
+}
+
 fn main() {
-    let a = Integer::new_stack(2);
-    let ra = Ref::new(&a);
-    a.print();
+    let mut a = Integer {val: 10};
+    let mut r = Ref::new(&mut a as *mut Integer);
+    std::mem::drop(a);
+    r.run();
+    r.run_again();
 }

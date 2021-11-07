@@ -22,3 +22,35 @@ macro_rules! unwrap_option {
         }
     }};
 }
+
+#[macro_export]
+macro_rules! as_ref {
+/*    ($ptr:ident) => {{*/
+        /*match unsafe {$ptr.as_ref()} {*/
+            /*None => {panic!("null pointer: {:?}", stringify!($ptr));},*/
+            /*Some(r) => r*/
+        /*}*/
+    /*}};*/
+    ($self:ident$(, $field:ident)*) => {
+        match unsafe {$self$(.$field)*.as_ref()} {
+            None => {panic!("null pointer: {:?}", stringify!($self$(.$field)*));},
+            Some(r) => r
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! as_mut {
+/*    ($ptr:ident) => {{*/
+        /*match unsafe {$ptr.as_mut()} {*/
+            /*None => {panic!("null pointer: {:?}", stringify!($ptr));},*/
+            /*Some(r) => r*/
+        /*}*/
+    /*}};*/
+    ($self:ident$(, $field:ident)*) => {
+        match unsafe {$self$(.$field)*.as_mut()} {
+            None => {panic!("null pointer: {:?}", stringify!($self$(.$field)*));},
+            Some(r) => r
+        }
+    }
+}

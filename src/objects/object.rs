@@ -9,6 +9,9 @@
 
 pub trait Object {
     //fn get_klass(&self) -> Option<*const Klass>;
+    fn print(&self) {
+        panic!("this type does not impl print method");
+    }
 
     fn add(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
         None
@@ -18,9 +21,7 @@ pub trait Object {
         None
     }
 
-    fn print(&self) {
-        panic!("this type does not impl print method");
-    }
+    fn inplace_sub(&mut self, _rhs: *const dyn Object) {}
 
     fn mul(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
         None
