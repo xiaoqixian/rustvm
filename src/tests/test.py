@@ -6,7 +6,6 @@
 # > Location        : Shanghai
 # > Copyright@ https://github.com/xiaoqixian
 
-def func():
-    print "hello world"
-
-func()
+a = 1
+b = 2
+print b - a
