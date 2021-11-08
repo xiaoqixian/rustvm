@@ -69,7 +69,7 @@ impl BufferedInputStream {
 
     pub fn read_char(&mut self) -> Result<char, Errors> {
         let temp = self.read()?;
-        assert!(temp < 128,"{}", format!("read char out of ascii:{}, with index: {}", temp, self.index));
+        //assert!(temp < 128,"{}", format!("read char out of ascii:{}, with index: {}", temp, self.index));
         Ok(temp as char)
     }
 

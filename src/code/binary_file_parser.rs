@@ -141,6 +141,9 @@ impl BinaryFileParser {
                 's' => {
                     list.push(Box::into_raw(self.get_string()?));
                 },
+                'R' => {
+                    list.push(*self.string_table.get(self.bis.read_int()? as usize).unwrap());
+                },
                 _ => {
                     return Err(Errors::UnknownCharError(String::from(format!("{} at line {}", c, line!()))));
                 }

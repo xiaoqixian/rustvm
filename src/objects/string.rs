@@ -34,9 +34,9 @@ impl Str {
     }
 
     pub fn push(&mut self, c: char) {
-        match c.len_utf8() {
-            1 => self.val.push(c as u8),
-            _ => {panic!("Doesn't support char out of ASCII: {}", c);}
+        match c as u32 {
+            0..=255 => self.val.push(c as u8),
+            _ => {panic!("Doesn't support char out of ASCII: <{}>", c);}
         }
     }
 
