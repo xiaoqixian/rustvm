@@ -7,164 +7,136 @@
   > Copyright@ https://github.com/xiaoqixian
  **********************************************/
 
+use std::rc::Rc;
+
 use super::object::Object;
 use super::statics;
 use crate::as_ref;
+use crate::errors::Errors;
 
-macro_rules! ptr_to_ref {
-    ($ptr:ident) => {{
-        unsafe {
-            match $ptr.cast::<Self>().as_ref() {
-                None => {return None;},
-                Some(r) => r
-            }
-        }
-    }}
-}
-
-macro_rules! ptr_to_ref_no_ret {
-    ($ptr:ident) => {{
-        unsafe {
-            match $ptr.cast::<Self>().as_ref() {
-                None => {return ;},
-                Some(r) => r
-            }
-        }
-    }}
-}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Integer {
-    val: i32,
+    inner: i32,
 }
 
 impl Integer {
-    pub fn get(&self) -> i32 {
-        self.val
+    pub fn into(&self) -> i32 {
+        self.inner
     }
 
-    pub fn new(val: i32) -> Box<Self> {
-        Box::new(Integer {val})
-    }
-
-    pub fn new_ptr(val: i32) -> *mut Self {
-        Box::into_raw(Self::new(val))
-    }
-
-    pub const fn new_stack(val: i32) -> Self {
-        Self {val}
+    pub fn new(inner: i32) -> Self {
+        Integer {inner}
     }
 }
 
 impl Object for Integer {
     fn print(&self) {
-        colour::blue_ln!("{}", self.val);
+        colour::blue_ln!("{}", self.inner);
     }
 
-    fn add(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn into<i32>(&self) -> Result<i32, Errors> {
+        Ok(self.inner)
+    }
+
+    fn add(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
+        Ok(Self::new(self.inner + _rhs.into()))
+    }
+
+    fn sub(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref:&Self = unsafe {
             match _rhs.cast::<Self>().as_ref() {
                 None => {return None;},
-                Some(r) => r
+                Ok(r) => r
             }
         };
-        Some(Self::new_ptr(self.val + _rhs_ref.get()))
+        Ok(Self::new_ptr(self.inner - _rhs_ref.into()))
     }
 
-    fn sub(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        let _rhs_ref:&Self = unsafe {
-            match _rhs.cast::<Self>().as_ref() {
-                None => {return None;},
-                Some(r) => r
-            }
-        };
-        Some(Self::new_ptr(self.val - _rhs_ref.get()))
-    }
-
-    fn inplace_sub(&mut self, _rhs: *const dyn Object) {
+    fn inplace_sub(&mut self, _rhs: Rc<dyn Object>) {
         let _rhs_ref = ptr_to_ref_no_ret!(_rhs);
-        self.val -= _rhs_ref.get();
+        self.inner -= _rhs_ref.into();
     }
 
-    fn mul(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn mul(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref:&Self = unsafe {
             match _rhs.cast::<Self>().as_ref() {
                 None => {return None;},
-                Some(r) => r
+                Ok(r) => r
             }
         };
-        Some(Self::new_ptr(self.val * _rhs_ref.get()))
+        Ok(Self::new_ptr(self.inner * _rhs_ref.into()))
     }
 
-    fn div(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn div(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref:&Self = unsafe {
             match _rhs.cast::<Self>().as_ref() {
                 None => {return None;},
-                Some(r) => r
+                Ok(r) => r
             }
         };
-        if _rhs_ref.get() == 0 {
+        if _rhs_ref.into() == 0 {
             panic!("divide by zero");
         }
-        Some(Self::new_ptr(self.val / _rhs_ref.get()))
+        Ok(Self::new_ptr(self.inner / _rhs_ref.into()))
     }
 
-    fn greater(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn greater(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref:&Self = unsafe {
             match _rhs.cast::<Self>().as_ref() {
                 None => {return None;},
-                Some(r) => r
+                Ok(r) => r
             }
         };
-        if self.val > _rhs_ref.get() {
-            Some(statics::TRUE)
+        if self.inner > _rhs_ref.into() {
+            Ok(statics::TRUE)
         } else {
-            Some(statics::FALSE)
+            Ok(statics::FALSE)
         }
     }
 
-    fn less(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn less(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref = ptr_to_ref!(_rhs);
-        if self.val < _rhs_ref.get() {
-            Some(statics::TRUE)
+        if self.inner < _rhs_ref.into() {
+            Ok(statics::TRUE)
         } else {
-            Some(statics::FALSE)
+            Ok(statics::FALSE)
         }
     }
 
-    fn equal(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn equal(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref = ptr_to_ref!(_rhs);
-        if self.val == _rhs_ref.get() {
-            Some(statics::TRUE)
+        if self.inner == _rhs_ref.into() {
+            Ok(statics::TRUE)
         } else {
-            Some(statics::FALSE)
+            Ok(statics::FALSE)
         }
     }
 
-    fn ne(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn ne(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref = ptr_to_ref!(_rhs);
-        if self.val != _rhs_ref.get() {
-            Some(statics::TRUE)
+        if self.inner != _rhs_ref.into() {
+            Ok(statics::TRUE)
         } else {
-            Some(statics::FALSE)
+            Ok(statics::FALSE)
         }
     }
 
-    fn le(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn le(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref = ptr_to_ref!(_rhs);
-        if self.val <= _rhs_ref.get() {
-            Some(statics::TRUE)
+        if self.inner <= _rhs_ref.into() {
+            Ok(statics::TRUE)
         } else {
-            Some(statics::FALSE)
+            Ok(statics::FALSE)
         }
     }
 
-    fn ge(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
+    fn ge(&self, _rhs: Rc<dyn Object>) -> Result<Rc<dyn Object>, Errors> {
         let _rhs_ref = ptr_to_ref!(_rhs);
-        if self.val >= _rhs_ref.get() {
-            Some(statics::TRUE)
+        if self.inner >= _rhs_ref.into() {
+            Ok(statics::TRUE)
         } else {
-            Some(statics::FALSE)
+            Ok(statics::FALSE)
         }
     }
 }

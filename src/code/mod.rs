@@ -54,8 +54,7 @@ pub mod byte_code {
     pub const IMPORT_NAME:u8 = 108; /* Index in name list */
     pub const IMPORT_FROM:u8 = 109; /* Index in name list */
     pub const JUMP_FORWARD:u8 = 110; /* Number of bytes to skip */
-    pub const JUMP_IF_FALSE_OR_POP:u8 = 111; /* Target byte offset from beginning
-                                    of code */
+    pub const JUMP_IF_FALSE_OR_POP:u8 = 111; /* Target byte offset from beginning of code */
 
     pub const JUMP_ABSOLUTE:u8 = 113;
     pub const POP_JUMP_IF_FALSE:u8 = 114;

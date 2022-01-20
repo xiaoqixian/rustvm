@@ -18,4 +18,8 @@ pub enum Errors {
     //parser errors
     GetNameError(String),
     UnknownCharError(String),
+    ObjectMethodNotImplemented(&'static str),
+
+    InvalidArg(String),
+    InvalidObject(String)
 }

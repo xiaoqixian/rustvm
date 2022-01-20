@@ -11,9 +11,11 @@ use std::fs::File;
 use std::os::unix::prelude::FileExt;
 use crate::errors::Errors;
 
+const BUFFER_SIZE: usize = 256;
+
 pub struct BufferedInputStream {
     fp: File,
-    buffer: [u8; 256],
+    buffer: [u8; BUFFER_SIZE],
     index: usize,
     offset: u64
 }
@@ -35,7 +37,7 @@ impl BufferedInputStream {
                 }
             },
             buffer: {
-                let mut temp = [0 as u8; 256];
+                let mut temp = [0 as u8; BUFFER_SIZE];
                 bytes = match f.read_at(&mut temp, 0 as u64) {
                     Ok(v) => v,
                     Err(e) => {
@@ -51,7 +53,7 @@ impl BufferedInputStream {
     }
 
     pub fn read(&mut self) -> Result<u8, Errors> {
-        if self.index < 256 {
+        if self.index < BUFFER_SIZE {
             self.index += 1;
             Ok(self.buffer[self.index-1])
         } else {
@@ -81,6 +83,14 @@ impl BufferedInputStream {
 
         let i = d<<24 | c<<16 | b<<8 | a;
         Ok(i)
+    }
+
+    pub fn read_u32(&mut self) -> Result<u32, Errors> {
+        Ok(self.read_int()? as u32)
+    }
+
+    pub fn read_usize(&mut self) -> Result<usize, Errors> {
+        Ok(self.read_int()? as usize)
     }
 
     pub fn unread(&mut self) {

@@ -7,17 +7,20 @@
   > Copyright@ https://github.com/xiaoqixian
  **********************************************/
 
-use super::{object::Object, function::Function};
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
+
+use super::{object::Object, function::Function, string::Str};
 use crate::code::binary_file_parser::CodeObject;
-use crate::{as_ref};
 
 pub trait MultiNew<T> {
     type Output;
     fn new(codes: T) -> Self::Output;
+    fn new_with_sender(codes: T, sender: Rc<Self::Output>) -> Self::Output;
 }
 
-
+#[derive(Clone, Copy, Debug)]
 pub struct Block {
     pub _type: u8,
     pub target: usize,
@@ -25,7 +28,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(_type:u8, target:usize, level:usize) -> Self {
+    pub fn new(_type: u8, target: usize, level: usize) -> Self {
         Self {
             _type,
             target,
@@ -34,66 +37,106 @@ impl Block {
     }
 }
 
-
+#[derive(Clone)]
 pub struct Frame {
-    pub pc: usize,
-    pub stack: Vec<*mut dyn Object>,
-    pub loop_stack: Vec<Block>,
-    pub locals: HashMap<*mut dyn Object, *mut dyn Object>,
+    pub pc: RefCell<usize>,
+    pub stack: RefCell<Vec<Object>>,
+    pub loop_stack: RefCell<Vec<Block>>,
+    pub locals: RefCell<HashMap<Str, Object>>,
     //pub codes: Box<CodeObject>,
-    pub codes: *mut CodeObject,
+    pub codes: CodeObject,
     //pub sender: Option<Box<Self>>,
-    pub sender: *mut Self
+    pub sender: Option<Rc<Self>>
 }
 
 impl Frame {
+    #[inline]
+    pub fn get_pc(&self) -> usize {
+        *self.pc.borrow()
+    }
+
+    #[inline]
+    pub fn set_pc(&self, pc: usize) {
+        *self.pc.borrow_mut() = pc;
+    } 
+
+    #[inline]
+    pub fn add_pc(&self) {
+        *self.pc.borrow_mut() += 1;
+    }
+
+    #[inline]
+    pub fn add_pc_n(&self, n: usize) {
+        *self.pc.borrow_mut() += n;
+    }
+
     pub fn has_more_codes(&self) -> bool {
-        self.pc < as_ref!(self, codes).bytecodes.len()
+        self.get_pc() < self.codes.code_length()
     }
     
-    pub fn get_opcode(&mut self) -> u8 {
-        let res = as_ref!(self, codes).bytecodes[self.pc];
-        self.pc += 1;
+    pub fn get_opcode(&self) -> u8 {
+        let res = self.codes.bytecodes[self.get_pc()];
+        self.add_pc();
         res
     }
 
     pub fn get_oparg(&mut self) -> usize {
-        let b1 = (as_ref!(self, codes).bytecodes[self.pc] & 0xff) as usize;
-        self.pc += 1;
-        let b2 = (as_ref!(self, codes).bytecodes[self.pc] & 0xff) as usize;
-        self.pc += 1;
+        let b1 = (self.codes.bytecodes[self.get_pc()] & 0xff) as usize;
+        self.add_pc();
+        let b2 = (self.codes.bytecodes[self.get_pc()] & 0xff) as usize;
+        self.add_pc();
         b2 << 8 | b1
     }
 }
 
 //this associated functions is used for modules only.
-impl MultiNew<*mut CodeObject> for Frame {
-    type Output = *mut Frame;
-    fn new(codes: *mut CodeObject) -> Self::Output {
-        Box::into_raw(Box::new(Frame {
-            pc: 0,
-            stack: Vec::new(),
-            loop_stack: Vec::new(),
-            locals: HashMap::new(),
+impl MultiNew<CodeObject> for Frame {
+    type Output = Frame;
+    fn new(codes: CodeObject) -> Self::Output {
+        Frame {
+            pc: RefCell::new(0),
+            stack: RefCell::new(Vec::new()),
+            loop_stack: RefCell::new(Vec::new()),
+            locals: RefCell::new(HashMap::new()),
             codes,
-            sender: std::ptr::null_mut::<Self>()
-        }))
+            sender: None
+        }
+    }
+
+    fn new_with_sender(codes: CodeObject, sender: Rc<Self::Output>) -> Self::Output {
+        Frame {
+            pc: RefCell::new(0),
+            stack: RefCell::new(Vec::new()),
+            loop_stack: RefCell::new(Vec::new()),
+            locals: RefCell::new(HashMap::new()),
+            codes,
+            sender: Some(sender) 
+        }
     }
 }
 
-impl MultiNew<*mut Function> for Frame {
-    type Output = *mut Frame;
-    fn new(func: *mut Function) -> Self::Output {
-        let func_ref = as_ref!(func);
-        Box::into_raw(Box::new(Frame {
-            pc: 0,
-            stack: Vec::new(),
-            loop_stack: Vec::new(),
-            locals: HashMap::new(),
-            codes: func_ref.func_codes,
-            sender: std::ptr::null_mut::<Self>()
-        }))
+impl MultiNew<Function> for Frame {
+    type Output = Frame;
+    fn new(func: Function) -> Self::Output {
+        Frame {
+            pc: RefCell::new(0),
+            stack: RefCell::new(Vec::new()),
+            loop_stack: RefCell::new(Vec::new()),
+            locals: RefCell::new(HashMap::new()),
+            codes: func.func_codes,
+            sender: None
+        }
+    }
+
+    fn new_with_sender(func: Function, sender: Rc<Self::Output>) -> Self::Output {
+        Frame {
+            pc: RefCell::new(0),
+            stack: RefCell::new(Vec::new()),
+            loop_stack: RefCell::new(Vec::new()),
+            locals: RefCell::new(HashMap::new()),
+            codes: func.func_codes,
+            sender: Some(sender) 
+        }
     }
 }
 
-impl Object for Frame {}

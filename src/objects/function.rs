@@ -9,26 +9,21 @@
 
 use crate::code::binary_file_parser::{CodeObject};
 use super::{object::Object, string::Str};
-use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct Function {
-    pub func_codes: *mut CodeObject,
+    pub func_codes: CodeObject,
     pub func_name: Str,
     pub flags: u32
 }
 
 impl Function {
-    pub fn new(codes: *mut CodeObject) -> *mut dyn Object {
-        Box::into_raw(Box::new(Self {
+    pub fn new(codes: CodeObject) -> Self {
+        Self {
+            func_name: codes.co_name.clone(),
             func_codes: codes,
-            func_name: unsafe {(*(*codes).co_name).clone()},
             flags: 0
-        }))
+        }
     }
 }
 
-impl Object for Function {
-    fn print(&self) {
-        colour::blue_ln!("<function: {}>", self.func_name.get().unwrap());
-    }
-}

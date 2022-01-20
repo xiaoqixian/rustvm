@@ -7,88 +7,61 @@
   > Copyright@ https://github.com/xiaoqixian
  **********************************************/
 
-pub trait Object {
-    //fn get_klass(&self) -> Option<*const Klass>;
-    fn print(&self) {
-        panic!("this type does not impl print method");
-    }
+use std::fmt;
 
-    fn add(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
+use crate::errors::Errors;
+use crate::objects::function::Function;
+use crate::objects::string::Str;
+use crate::code::binary_file_parser::CodeObject;
 
-    fn sub(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
+#[derive(Clone)]
+pub enum Object {
+    NONE,
+    True,
+    False,
+    Int(i32),
+    Str(Str),
+    Function(Function),
+    CodeObject(CodeObject),
+}
 
-    fn inplace_sub(&mut self, _rhs: *const dyn Object) {}
-
-    fn mul(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn div(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn module(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn greater(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn less(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn equal(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn ne(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn ge(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn le(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn subscr(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
-    }
-
-    fn contains(&self, _rhs: *const dyn Object) -> Option<*mut dyn Object> {
-        None
+impl fmt::Debug for Object {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            &Self::Int(i) => write!(f, "Int({})", i),
+            &Self::Str(ref s) => write!(f, "Str({})", s),
+            &Self::Function(ref func) => write!(f, "<func, {:?}>", func.func_name),
+            &Self::CodeObject(ref code) => write!(f, "CodeObject"),
+            _ => panic!("Invalid type")
+        }
     }
 }
 
-//PyNone implements single instance pattern.
-pub struct PyNone {}
+impl Object {
+    pub fn print(&self) -> Result<(), Errors> {
+        match self {
+            &Self::NONE => print!("None"),
+            &Self::True => print!("True"),
+            &Self::False => print!("False"),
+            &Self::Int(i) => print!("{}", i),
+            &Self::Str(ref v) => print!("{}", v),
+            &Self::Function(ref f) => {},
+            _ => {}
+        }
+        Ok(())
+    }
 
-impl Object for PyNone {
-    fn print(&self) {
-        colour::blue_ln!("None");
-    } 
-}
-
-pub struct PyTrue {pub val:i32}
-
-impl Object for PyTrue {
-    fn print(&self) {
-        colour::blue_ln!("True");
+    pub fn add(&self, rhs: &Object) -> Result<Self, Errors> {
+        match rhs {
+            &Self::Int(r) => {
+                match self {
+                    &Self::Int(i) => Ok(Self::Int(i + r)),
+                    _ => Err(Errors::InvalidArg(format!("{:?}", self)))
+                }
+            },
+            _ => Err(Errors::InvalidArg(format!("{:?}", rhs)))
+        }
     }
 }
 
-pub struct PyFalse {pub val: i32}
 
-impl Object for PyFalse {
-    fn print(&self) {
-        colour::blue_ln!("False");
-    }
-}
