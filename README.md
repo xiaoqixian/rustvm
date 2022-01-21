@@ -51,3 +51,9 @@ That's because a function has many dynamic information like parameters. These ca
 
 When we run into the `MAKE_FUNCTION` operation code, we just connect the function name with the function's bytecodes. The actual `FuntionObject` and the new frame are not created until with the `CALL_FUNCTION` operation code.
 
+A function object should contain the following members:
+
+- func code: CodeObject of the function
+- func name
+- flags: for latter usage
+
