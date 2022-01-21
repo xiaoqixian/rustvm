@@ -8,11 +8,13 @@
  **********************************************/
 
 use std::rc::Rc;
+use std::collections::VecDeque;
 
 use crate::objects::{object::Object, frame::{Frame, Block, MultiNew}, function::Function};
 use crate::code::binary_file_parser::CodeObject;
 use crate::code::{byte_code, get_op, byte_code::compare};
 use crate::errors::Errors;
+use crate::{info, debug, error};
 
 /*macro_rules! pop {*/
     /*($self:ident$(, $field:ident)*) => {*/
@@ -42,7 +44,7 @@ impl Drop for Interpreter {
 impl Interpreter {
     pub fn new(codes: CodeObject) -> Self {
         Self {
-            frame: Rc::new(Frame::new(codes))
+            frame: Rc::new(Frame::new(codes, None, None))
         }
     }
 
@@ -58,26 +60,27 @@ impl Interpreter {
         /*let locals = &mut frame.locals;//K:locals names, V: locals values.*/
 
         while self.frame.has_more_codes() {
-            op_code = Rc::get_mut(&mut self.frame).unwrap().get_opcode();
-            let has_argument = (op_code & 0xff) >= byte_code::HAVE_ARGUMENT;
-            if has_argument {
-                op_arg = Rc::get_mut(&mut self.frame).unwrap().get_oparg();
+            op_code = self.frame.get_opcode();
+            let have_argument = (op_code & 0xff) >= byte_code::HAVE_ARGUMENT;
+            if have_argument {
+                op_arg = self.frame.get_oparg();
             }
 
-            println!("op: {:?}, op_code: {:x}, op_arg: {:x}", match get_op(op_code) {
+            info!("op: {:?}, op_code: {}, op_arg: {}", match get_op(op_code) {
                 None => {panic!("invalid op_code: {}", op_code);},
                 Some(e) => e
             }, op_code, op_arg);
 
             match op_code {
-                byte_code::POP_TOP => assert!(self.frame.stack.borrow_mut().pop().is_some()),
+                byte_code::POP_TOP => {self.frame.stack.borrow_mut().pop();},
 
-                byte_code::LOAD_CONST => self.frame.stack.borrow_mut().push(self.frame.codes.consts[op_arg as usize].clone()),
+                byte_code::LOAD_CONST => {self.frame.stack.borrow_mut().push(self.frame.codes.consts[op_arg].clone()); debug!("load const {:?}", self.frame.codes.consts[op_arg]);},
                 
                 byte_code::LOAD_NAME => {
                     self.frame.stack.borrow_mut().push(
-                        match &self.frame.codes.names[op_arg as usize] {
+                        match &self.frame.codes.names[op_arg] {
                             &Object::Str(ref s) => {
+                                debug!("load name {}", s);
                                 match self.frame.locals.borrow().get(s) {
                                     None => panic!("op_arg {} as name {} gets nothing", op_arg, s),
                                     Some(o) => (*o).clone()
@@ -88,6 +91,15 @@ impl Interpreter {
                     );
                 },
 
+                byte_code::LOAD_FAST => {
+                    self.frame.stack.borrow_mut().push((*&self.frame.fast_locals.as_ref().unwrap().borrow()[op_arg]).clone());
+                },
+
+                byte_code::STORE_FAST => {
+                    let v = self.frame.stack.borrow_mut().pop().unwrap();
+                    *&mut self.frame.fast_locals.as_ref().unwrap().borrow_mut()[op_arg] = v;
+                }
+
                 byte_code::STORE_NAME => {
                     self.frame.locals.borrow_mut().insert(
                         match &self.frame.codes.names[op_arg] {
@@ -97,17 +109,28 @@ impl Interpreter {
                 },
 
                 byte_code::PRINT_ITEM => {
-                    self.frame.stack.borrow_mut().pop().unwrap().print();
+                    self.frame.stack.borrow_mut().pop().unwrap().print()?;
                 },
 
                 byte_code::PRINT_NEWLINE => {
                     println!("\n");
                 },
 
-                byte_code::BINARY_ADD | byte_code::INPLACE_ADD => {
+                byte_code::BINARY_ADD | byte_code::BINARY_SUBTRACT |
+                byte_code::BINARY_MULTIPLY | byte_code::BINARY_DIVIDE |
+                byte_code::BINARY_MOD | byte_code::BINARY_SUBSCR => {
                     let p2 = self.frame.stack.borrow_mut().pop().unwrap();
                     let p1 = self.frame.stack.borrow_mut().pop().unwrap();
-                    self.frame.stack.borrow_mut().push(p1.add(&p2)?);
+                    match op_code {
+                        byte_code::BINARY_ADD => self.frame.stack.borrow_mut().push(p1.add(&p2)?),
+                        byte_code::BINARY_SUBTRACT => self.frame.stack.borrow_mut().push(p1.sub(&p2)?),
+                        byte_code::BINARY_MULTIPLY => self.frame.stack.borrow_mut().push(p1.mul(&p2)?),
+                        byte_code::BINARY_DIVIDE => self.frame.stack.borrow_mut().push(p1.div(&p2)?),
+                        byte_code::BINARY_MOD => self.frame.stack.borrow_mut().push(p1.r#mod(&p2)?),
+                        byte_code::BINARY_SUBSCR => self.frame.stack.borrow_mut().push(p1.subscr(&p2)?),
+                        _ => {}
+
+                    }
                 },
 
 /*                byte_code::BINARY_SUBTRACT => {*/
@@ -223,21 +246,43 @@ impl Interpreter {
                 },
 
                 byte_code::MAKE_FUNCTION => {
-                    match self.frame.stack.borrow_mut().pop().unwrap() {
+                    let code_wrap = self.frame.stack.borrow_mut().pop().unwrap();
+                    let defaults = if op_arg > 0 {
+                        let mut defaults = VecDeque::<Object>::with_capacity(op_arg);
+                        while op_arg > 0 {
+                            defaults.push_front(self.frame.stack.borrow_mut().pop().unwrap());
+                            op_arg -= 1;
+                        }
+                        Some(Vec::from(defaults))
+                    } else {None};
+
+                    match code_wrap {
                         Object::CodeObject(code_obj) => {
-                            self.frame.stack.borrow_mut().push(Object::Function(Function::new(code_obj)));
+                            self.frame.stack.borrow_mut().push(Object::Function(Function::new(code_obj, defaults)));
                         },
-                        _ => panic!("Invalid arg"),
+                        _ => panic!("Invalid code_obj {:?}", code_wrap),
                     }
                 }
 
                 byte_code::CALL_FUNCTION => {
+                    let mut args = if op_arg > 0 {
+                        let mut args = VecDeque::<Object>::with_capacity(op_arg);
+                        while op_arg > 0 {
+                            args.push_front(self.frame.stack.borrow_mut().pop().unwrap());
+                            op_arg -= 1;
+                        }
+                        Some(Vec::from(args))
+                    } else {None};
+
                     let func_wrap = self.frame.stack.borrow_mut().pop().unwrap();
                     match func_wrap {
                         Object::Function(func) => {
-                            self.build_frame(func);
+                            if args.is_none() && func.defaults.is_some() {
+                                args = Some((*func.defaults.as_ref().unwrap()).clone());
+                            }
+                            self.build_frame(func, args);
                         },
-                        _ => panic!("Invalid arg")
+                        _ => panic!("Invalid function {:?}", func_wrap)
                     }
                 }
 
@@ -256,8 +301,8 @@ impl Interpreter {
         Ok(())
     }
 
-    fn build_frame(&mut self, callable: Function) {
-        let new_frame = Rc::new(Frame::new_with_sender(callable, self.frame.clone()));
+    fn build_frame(&mut self, callable: Function, args: Option<Vec<Object>>) {
+        let new_frame = Rc::new(Frame::new(callable, args, Some(self.frame.clone())));
         self.frame = new_frame.clone();
     }
 }

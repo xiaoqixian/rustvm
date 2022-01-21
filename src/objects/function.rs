@@ -14,15 +14,17 @@ use super::{object::Object, string::Str};
 pub struct Function {
     pub func_codes: CodeObject,
     pub func_name: Str,
-    pub flags: u32
+    pub flags: u32,
+    pub defaults: Option<Vec<Object>>
 }
 
 impl Function {
-    pub fn new(codes: CodeObject) -> Self {
+    pub fn new(codes: CodeObject, defaults: Option<Vec<Object>>) -> Self {
         Self {
             func_name: codes.co_name.clone(),
             func_codes: codes,
-            flags: 0
+            flags: 0,
+            defaults
         }
     }
 }

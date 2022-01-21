@@ -28,6 +28,9 @@ pub enum Object {
 impl fmt::Debug for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            &Self::NONE => write!(f, "None"),
+            &Self::True => write!(f, "True"),
+            &Self::False => write!(f, "False"),
             &Self::Int(i) => write!(f, "Int({})", i),
             &Self::Str(ref s) => write!(f, "Str({})", s),
             &Self::Function(ref func) => write!(f, "<func, {:?}>", func.func_name),
@@ -40,11 +43,11 @@ impl fmt::Debug for Object {
 impl Object {
     pub fn print(&self) -> Result<(), Errors> {
         match self {
-            &Self::NONE => print!("None"),
-            &Self::True => print!("True"),
-            &Self::False => print!("False"),
-            &Self::Int(i) => print!("{}", i),
-            &Self::Str(ref v) => print!("{}", v),
+            &Self::NONE => println!("None"),
+            &Self::True => println!("True"),
+            &Self::False => println!("False"),
+            &Self::Int(i) => println!("{}", i),
+            &Self::Str(ref v) => println!("{}", v),
             &Self::Function(ref f) => {},
             _ => {}
         }
@@ -59,6 +62,60 @@ impl Object {
                     _ => Err(Errors::InvalidArg(format!("{:?}", self)))
                 }
             },
+            _ => Err(Errors::InvalidArg(format!("{:?}", rhs)))
+        }
+    }
+
+    pub fn sub(&self, rhs: &Object) -> Result<Self, Errors> {
+        match rhs {
+            &Self::Int(r) => {
+                match self {
+                    &Self::Int(i) => Ok(Self::Int(i - r)),
+                    _ => Err(Errors::InvalidArg(format!("{:?}", self)))
+                }
+            },
+            _ => Err(Errors::InvalidArg(format!("{:?}", rhs)))
+        }
+    }
+
+    pub fn mul(&self, rhs: &Object) -> Result<Self, Errors> {
+        match rhs {
+            &Self::Int(r) => {
+                match self {
+                    &Self::Int(i) => Ok(Self::Int(i * r)),
+                    _ => Err(Errors::InvalidArg(format!("{:?}", self)))
+                }
+            },
+            _ => Err(Errors::InvalidArg(format!("{:?}", rhs)))
+        }
+    }
+
+    pub fn div(&self, rhs: &Object) -> Result<Self, Errors> {
+        match rhs {
+            &Self::Int(r) => {
+                match self {
+                    &Self::Int(i) => Ok(Self::Int(i / r)),
+                    _ => Err(Errors::InvalidArg(format!("{:?}", self)))
+                }
+            },
+            _ => Err(Errors::InvalidArg(format!("{:?}", rhs)))
+        }
+    }
+
+    pub fn r#mod(&self, rhs: &Object) -> Result<Self, Errors> {
+        match rhs {
+            &Self::Int(r) => {
+                match self {
+                    &Self::Int(i) => Ok(Self::Int(i % r)),
+                    _ => Err(Errors::InvalidArg(format!("{:?}", self)))
+                }
+            },
+            _ => Err(Errors::InvalidArg(format!("{:?}", rhs)))
+        }
+    }
+
+    pub fn subscr(&self, rhs: &Object) -> Result<Self, Errors> {
+        match rhs {
             _ => Err(Errors::InvalidArg(format!("{:?}", rhs)))
         }
     }

@@ -7,7 +7,7 @@ pub mod byte_code {
     pub const DUP_TOP:u8 = 4;
     pub const UNARY_NEGATIVE:u8 = 11;
     pub const BINARY_MULTIPLY:u8 = 20;
-    pub const BINARY_MODULO:u8 = 22;
+    pub const BINARY_MOD:u8 = 22;
     pub const BINARY_SUBSCR:u8 = 25;
     pub const BINARY_DIVIDE:u8 = 21;
     pub const BINARY_ADD:u8 = 23;
@@ -18,7 +18,7 @@ pub mod byte_code {
     pub const INPLACE_SUBSTRACT:u8 = 56;
     pub const INPLACE_MULTIPLY:u8 = 57;
     pub const INPLACE_DIVIDE:u8 = 58;
-    pub const INPLACE_MODULO:u8 = 59;
+    pub const INPLACE_MOD:u8 = 59;
     pub const STORE_SUBSCR:u8 = 60;
     pub const DELETE_SUBSCR:u8 = 61;
 
@@ -103,7 +103,7 @@ pub enum Ops {
     DupTop,
     UnaryNegative,
     BinaryMultiply,
-    BinaryModulo,
+    BinaryMod,
     BinarySubscr,
     BinaryDivide,
     BinaryAdd,
@@ -114,7 +114,7 @@ pub enum Ops {
     InplaceSubstract,
     InplaceMultiply,
     InplaceDivide,
-    InplaceModulo,
+    InplaceMod,
     StoreSubscr,
     DeleteSubscr,
 
@@ -186,7 +186,7 @@ pub fn get_op(index: u8) -> Option<Ops> {
         4 => Some(Ops::DupTop),
         11 => Some(Ops::UnaryNegative),
         20 => Some(Ops::BinaryMultiply),
-        22 => Some(Ops::BinaryModulo),
+        22 => Some(Ops::BinaryMod),
         25 => Some(Ops::BinarySubscr),
         21 => Some(Ops::BinaryDivide),
         23 => Some(Ops::BinaryAdd),
@@ -197,7 +197,7 @@ pub fn get_op(index: u8) -> Option<Ops> {
         56 => Some(Ops::InplaceSubstract),
         57 => Some(Ops::InplaceMultiply),
         58 => Some(Ops::InplaceDivide),
-        59 => Some(Ops::InplaceModulo),
+        59 => Some(Ops::InplaceMod),
         60 => Some(Ops::StoreSubscr),
         61 => Some(Ops::DeleteSubscr),
 

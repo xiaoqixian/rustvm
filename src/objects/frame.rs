@@ -13,11 +13,11 @@ use std::cell::RefCell;
 
 use super::{object::Object, function::Function, string::Str};
 use crate::code::binary_file_parser::CodeObject;
+//use crate::errors::Errors;
 
 pub trait MultiNew<T> {
     type Output;
-    fn new(codes: T) -> Self::Output;
-    fn new_with_sender(codes: T, sender: Rc<Self::Output>) -> Self::Output;
+    fn new(codes: T, args: Option<Vec<Object>>, sender: Option<Rc<Self::Output>>) -> Self::Output;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -43,6 +43,8 @@ pub struct Frame {
     pub stack: RefCell<Vec<Object>>,
     pub loop_stack: RefCell<Vec<Block>>,
     pub locals: RefCell<HashMap<Str, Object>>,
+    pub globals: HashMap<Str, Object>,
+    pub fast_locals: Option<RefCell<Vec<Object>>>,
     //pub codes: Box<CodeObject>,
     pub codes: CodeObject,
     //pub sender: Option<Box<Self>>,
@@ -80,7 +82,7 @@ impl Frame {
         res
     }
 
-    pub fn get_oparg(&mut self) -> usize {
+    pub fn get_oparg(&self) -> usize {
         let b1 = (self.codes.bytecodes[self.get_pc()] & 0xff) as usize;
         self.add_pc();
         let b2 = (self.codes.bytecodes[self.get_pc()] & 0xff) as usize;
@@ -92,50 +94,38 @@ impl Frame {
 //this associated functions is used for modules only.
 impl MultiNew<CodeObject> for Frame {
     type Output = Frame;
-    fn new(codes: CodeObject) -> Self::Output {
+    fn new(codes: CodeObject, args: Option<Vec<Object>>, sender: Option<Rc<Self::Output>>) -> Self::Output {
         Frame {
             pc: RefCell::new(0),
             stack: RefCell::new(Vec::new()),
             loop_stack: RefCell::new(Vec::new()),
             locals: RefCell::new(HashMap::new()),
+            globals: HashMap::new(),
+            fast_locals: match args {
+                None => None,
+                Some(v) => Some(RefCell::new(v))
+            },
             codes,
-            sender: None
-        }
-    }
-
-    fn new_with_sender(codes: CodeObject, sender: Rc<Self::Output>) -> Self::Output {
-        Frame {
-            pc: RefCell::new(0),
-            stack: RefCell::new(Vec::new()),
-            loop_stack: RefCell::new(Vec::new()),
-            locals: RefCell::new(HashMap::new()),
-            codes,
-            sender: Some(sender) 
+            sender 
         }
     }
 }
 
 impl MultiNew<Function> for Frame {
     type Output = Frame;
-    fn new(func: Function) -> Self::Output {
+    fn new(func: Function, args: Option<Vec<Object>>, sender: Option<Rc<Self::Output>>) -> Self::Output {
         Frame {
             pc: RefCell::new(0),
             stack: RefCell::new(Vec::new()),
             loop_stack: RefCell::new(Vec::new()),
             locals: RefCell::new(HashMap::new()),
+            globals: HashMap::new(),
+            fast_locals: match args {
+                None => None,
+                Some(v) => Some(RefCell::new(v))
+            },
             codes: func.func_codes,
-            sender: None
-        }
-    }
-
-    fn new_with_sender(func: Function, sender: Rc<Self::Output>) -> Self::Output {
-        Frame {
-            pc: RefCell::new(0),
-            stack: RefCell::new(Vec::new()),
-            loop_stack: RefCell::new(Vec::new()),
-            locals: RefCell::new(HashMap::new()),
-            codes: func.func_codes,
-            sender: Some(sender) 
+            sender
         }
     }
 }
