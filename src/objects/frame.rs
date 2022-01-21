@@ -120,9 +120,26 @@ impl MultiNew<Function> for Frame {
             loop_stack: RefCell::new(Vec::new()),
             locals: RefCell::new(HashMap::new()),
             globals: HashMap::new(),
-            fast_locals: match args {
-                None => None,
-                Some(v) => Some(RefCell::new(v))
+            fast_locals: {
+                let mut fast_locals = vec![Object::r#None; func.func_codes.argcount];
+                
+                if let &Some(ref defaults) = &func.defaults {
+                    let mut dft_num = defaults.len();
+                    let mut arg_num = func.func_codes.argcount;
+                    assert!(arg_num >= dft_num);
+
+                    while dft_num > 0 {
+                        dft_num -= 1;
+                        arg_num -= 1;
+                        *&mut fast_locals[arg_num] = (*&defaults[dft_num]).clone();
+                    }
+                }
+                
+                if let Some(args_v) = args {
+                    fast_locals.splice(..args_v.len(), args_v);
+                }
+
+                Some(RefCell::new(fast_locals))
             },
             codes: func.func_codes,
             sender

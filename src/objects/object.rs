@@ -16,7 +16,7 @@ use crate::code::binary_file_parser::CodeObject;
 
 #[derive(Clone)]
 pub enum Object {
-    NONE,
+    r#None,
     True,
     False,
     Int(i32),
@@ -28,7 +28,7 @@ pub enum Object {
 impl fmt::Debug for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            &Self::NONE => write!(f, "None"),
+            &Self::r#None => write!(f, "None"),
             &Self::True => write!(f, "True"),
             &Self::False => write!(f, "False"),
             &Self::Int(i) => write!(f, "Int({})", i),
@@ -43,7 +43,7 @@ impl fmt::Debug for Object {
 impl Object {
     pub fn print(&self) -> Result<(), Errors> {
         match self {
-            &Self::NONE => println!("None"),
+            &Self::r#None => println!("None"),
             &Self::True => println!("True"),
             &Self::False => println!("False"),
             &Self::Int(i) => println!("{}", i),

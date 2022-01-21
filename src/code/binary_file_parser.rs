@@ -125,7 +125,7 @@ impl BinaryFileParser {
             match c {
                 'c' => list.push(Object::CodeObject(self.get_codeobject()?)),
                 'i' => list.push(Object::Int(self.bis.read_int()?)),
-                'N' => list.push(Object::NONE),//None
+                'N' => list.push(Object::r#None),//None
                 't' => {
                     let s = self.get_string()?;
                     self.string_table.push(s.clone());

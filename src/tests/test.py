@@ -6,8 +6,8 @@
 # > Location        : Shanghai
 # > Copyright@ https://github.com/xiaoqixian
 
-def func(a = 0, b = 0):
+def func(a, b = 5):
     print a + b
 
 func(1, 2)
-func()
+func(1)
