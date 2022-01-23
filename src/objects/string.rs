@@ -7,21 +7,45 @@
   > Copyright@ https://github.com/xiaoqixian
  **********************************************/
 
+use std::collections::BTreeMap;
+use std::rc::Rc;
+use std::cmp::{PartialOrd, Ord, Ordering, PartialEq, Eq};
+
 use crate::errors::Errors;
 use std::ops::Index;
+use crate::objects::object::Object;
 
-#[derive(Clone, Hash)]
-pub struct Str {
-    inner: Vec<u8>
+/**
+ * define some python str methods
+ * store them in a static map
+ */
+fn upper(owner: &Str, args: Vec<Object>) -> Option<Object> {
+    let mut v = Vec::<u8>::new();
+    for i in owner.inner.iter() {
+        let c = *i as char;
+        if c <= 'z' && c >= 'a' {
+            v.push(*i + 32);
+        } else {
+            v.push(*i);
+        }
+    }
+    Some(Object::Str(Str::from(v)))
 }
 
-impl std::cmp::PartialEq for Str {
+#[derive(Clone)]
+pub struct Str {
+    inner: Vec<u8>,
+    attr: BTreeMap<Self, Object>
+}
+
+impl PartialEq for Str {
     fn eq(&self, other: &Self) -> bool {
-        if self.inner.len() != other.len() {
+        if self.inner.len() != other.inner.len() {
             return false;
         }
+
         for i in 0..self.inner.len() {
-            if self.inner[i] != other[i] {
+            if self.inner[i] != other.inner[i] {
                 return false;
             }
         }
@@ -29,21 +53,57 @@ impl std::cmp::PartialEq for Str {
     }
 }
 
-impl std::cmp::Eq for Str {}
+impl Eq for Str {}
 
-impl Str {
-    pub fn from(s: &str) -> Self {
+impl Ord for Str {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let l1 = self.inner.len();
+        let l2 = other.inner.len();
+        let len = if l1 < l2 { l1 } else { l2 };
+
+        for i in 0..len {
+            if self.inner[i] < other.inner[i] {
+                return Ordering::Less;
+            } else if self.inner[i] > other.inner[i] {
+                return Ordering::Greater;
+            }
+        }
+
+        l1.cmp(&l2)
+    }
+}
+
+impl PartialOrd for Str {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl std::convert::From<&str> for Str {
+    fn from(s: &str) -> Self {
         Self {
             inner: {
                 let mut v = vec![0 as u8; s.len()];
                 v.clone_from_slice(s.as_bytes());
                 v
-            }
+            },
+            attr: BTreeMap::new()
         }
     }
+}
 
+impl std::convert::From<Vec<u8>> for Str {
+    fn from(v: Vec<u8>) -> Self {
+        Self {
+            inner: v,
+            attr: BTreeMap::new()
+        }
+    }
+}
+
+impl Str {
     pub fn new() -> Self {
-        Self {inner: Vec::new()}
+        Self {inner: Vec::new(), attr: BTreeMap::new()}
     }
 
     pub fn push(&mut self, c: char) {

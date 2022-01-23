@@ -7,7 +7,7 @@
   > Copyright@ https://github.com/xiaoqixian
  **********************************************/
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -42,8 +42,8 @@ pub struct Frame {
     pub pc: RefCell<usize>,
     pub stack: RefCell<Vec<Object>>,
     pub loop_stack: RefCell<Vec<Block>>,
-    pub locals: RefCell<HashMap<Str, Object>>,
-    pub globals: HashMap<Str, Object>,
+    pub locals: RefCell<BTreeMap<Str, Object>>,
+    pub globals: BTreeMap<Str, Object>,
     pub fast_locals: Option<RefCell<Vec<Object>>>,
     //pub codes: Box<CodeObject>,
     pub codes: CodeObject,
@@ -99,8 +99,8 @@ impl MultiNew<CodeObject> for Frame {
             pc: RefCell::new(0),
             stack: RefCell::new(Vec::new()),
             loop_stack: RefCell::new(Vec::new()),
-            locals: RefCell::new(HashMap::new()),
-            globals: HashMap::new(),
+            locals: RefCell::new(BTreeMap::new()),
+            globals: BTreeMap::new(),
             fast_locals: match args {
                 None => None,
                 Some(v) => Some(RefCell::new(v))
@@ -118,8 +118,8 @@ impl MultiNew<Function> for Frame {
             pc: RefCell::new(0),
             stack: RefCell::new(Vec::new()),
             loop_stack: RefCell::new(Vec::new()),
-            locals: RefCell::new(HashMap::new()),
-            globals: HashMap::new(),
+            locals: RefCell::new(BTreeMap::new()),
+            globals: BTreeMap::new(),
             fast_locals: {
                 let mut fast_locals = vec![Object::r#None; func.func_codes.argcount];
                 

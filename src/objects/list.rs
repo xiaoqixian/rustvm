@@ -10,14 +10,51 @@
 use super::object::Object;
 
 #[derive(Clone, Debug)]
-pub struct ArrayList<T: Clone> {
-    array: Vec<T>
+pub struct List {
+    pub inner: Vec<Object> //make inner public is a lazy way to avoid implementing all methods of Vec<Object>
 }
 
-impl Object for ArrayList {}
+impl List {
+    pub fn new() -> Self {
+        Self {
+            inner: Vec::new()
+        }
+    }
 
-impl<T> ArrayList<T: Clone> {
-    pub fn new() -> Box<Self> {
-        Box::new(ArrayList {array: Vec::new()})
+    pub fn with_capacity(size: usize) -> Self {
+        Self {
+            inner: Vec::with_capacity(size)
+        }
+    }
+}
+
+impl std::fmt::Display for List {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::from("[");
+        if self.inner.len() > 0 {
+            s.push_str(format!("{}", self.inner[0]).as_str());
+        }
+
+        for i in 1..self.inner.len() {
+            s.push_str(format!(", {}", self.inner[i]).as_str());
+        }
+
+        write!(f, "{}]", s)
+    }
+}
+
+impl std::convert::From<Vec<Object>> for List {
+    fn from(inner: Vec<Object>) -> Self {
+        Self {
+            inner
+        }
+    }
+}
+
+impl std::convert::From<std::collections::VecDeque<Object>> for List {
+    fn from(v: std::collections::VecDeque<Object>) -> Self {
+        Self {
+            inner: Vec::from(v)
+        }
     }
 }

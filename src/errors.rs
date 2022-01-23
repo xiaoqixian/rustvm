@@ -21,5 +21,7 @@ pub enum Errors {
     ObjectMethodNotImplemented(&'static str),
 
     InvalidArg(String),
-    InvalidObject(String)
+    InvalidObject(String),
+
+    IndexOutBounds(i32),
 }

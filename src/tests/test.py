@@ -6,8 +6,6 @@
 # > Location        : Shanghai
 # > Copyright@ https://github.com/xiaoqixian
 
-def func(a, b = 5):
-    print a + b
+a = "hello"
 
-func(1, 2)
-func(1)
+print a.upper()
