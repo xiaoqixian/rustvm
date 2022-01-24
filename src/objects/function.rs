@@ -7,10 +7,13 @@
   > Copyright@ https://github.com/xiaoqixian
  **********************************************/
 
+use std::rc::Rc;
+
 use crate::code::binary_file_parser::CodeObject;
 use super::{object::Object, string::Str};
 
-pub type native_func = dyn Fn(Vec<Object>) -> Option<Object>;
+pub type NativeFuncPointer = dyn Fn(Vec<Object>) -> Option<Object>;
+pub type MethodFuncPointer = dyn Fn(Rc<Object>, Vec<Object>) -> Option<Object>;
 
 #[derive(Clone)]
 pub struct Function {
@@ -33,12 +36,12 @@ impl Function {
 
 #[derive(Clone)]
 pub struct NativeFunction {
-    pub nfp: &'static native_func,
+    pub nfp: &'static NativeFuncPointer,
     pub func_name: Str
 }
 
 impl NativeFunction {
-    pub fn new(nfp: &'static native_func, func_name: &Str) -> Self {
+    pub fn new(nfp: &'static NativeFuncPointer, func_name: &Str) -> Self {
         Self {
             nfp,
             func_name: func_name.clone()
@@ -48,6 +51,26 @@ impl NativeFunction {
     pub fn call(&self, args: Vec<Object>) -> Option<Object> {
         let nfp = self.nfp;
         nfp(args)
+    }
+}
+
+#[derive(Clone)]
+pub struct Method {
+    pub owner: Rc<Object>,
+    pub mfp: &'static MethodFuncPointer
+}
+
+impl Method {
+    pub fn from(owner: Rc<Object>, mfp: &'static MethodFuncPointer) -> Self {
+        Self {
+            owner,
+            mfp
+        }
+    }
+
+    pub fn call(&self, args: Vec<Object>) -> Option<Object> {
+        let mfp = self.mfp;
+        mfp(self.owner.clone(), args)
     }
 }
 

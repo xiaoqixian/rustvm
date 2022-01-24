@@ -12,8 +12,8 @@ use std::rc::Rc;
 use std::collections::BTreeMap;
 
 use crate::errors::Errors;
-use crate::objects::function::{Function, NativeFunction};
-use crate::objects::{string::Str, list::List};
+use crate::objects::function::{Function, NativeFunction, Method};
+use crate::objects::{string::{Str, STR_ATTR}, list::List};
 use crate::code::binary_file_parser::CodeObject;
 
 #[derive(Clone)]
@@ -26,6 +26,7 @@ pub enum Object {
     List(List),
     Function(Function),
     NativeFunction(NativeFunction),
+    Method(Method),
     CodeObject(CodeObject),
 }
 
@@ -40,6 +41,7 @@ impl fmt::Debug for Object {
             &Self::List(ref l) => write!(f, "List({})", l),
             &Self::Function(ref func) => write!(f, "<func, {}>", func.func_name),
             &Self::NativeFunction(ref native_func) => write!(f, "<native_func, {}>", native_func.func_name),
+            &Self::Method(ref m) => write!(f, "<Method, Owner {:?}>", m.owner),
             &Self::CodeObject(ref code) => write!(f, "CodeObject"),
             _ => panic!("Invalid type")
         }
@@ -64,6 +66,19 @@ impl fmt::Display for Object {
 }
 
 impl Object {
+    pub fn get_attr(self, attr: &Str) -> Self {
+        match &self {
+            &Self::Str(_) => {
+                //first search methods
+                if let Some(m) = unsafe {STR_ATTR.as_ref().unwrap().get(attr)} {
+                    return Object::Method(Method::from(Rc::new(self), m));
+                }
+                panic!("Invalid attribute {}", attr)
+            },
+            _ => panic!("Invalid arg {:?}", self)
+        }
+    }
+
     pub fn print(&self) -> Result<(), Errors> {
         match self {
             &Self::r#None => println!("None"),

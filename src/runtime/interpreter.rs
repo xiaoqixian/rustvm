@@ -10,8 +10,9 @@
 use std::rc::Rc;
 use std::collections::{VecDeque, BTreeMap};
 
-use crate::objects::{object::Object, frame::{Frame, Block, MultiNew}, string::Str, list::List};
-use crate::objects::function::{Function, NativeFunction, native_func, len};
+use crate::objects::{object::Object, frame::{Frame, Block, MultiNew}, list::List};
+use crate::objects::function::{Function, NativeFunction, NativeFuncPointer, MethodFuncPointer, len};
+use crate::objects::string::{Str, STR_ATTR, upper};
 use crate::code::binary_file_parser::CodeObject;
 use crate::code::{byte_code, get_op, byte_code::compare};
 use crate::errors::Errors;
@@ -34,7 +35,7 @@ use crate::{info, debug, error};
 
 pub struct Interpreter {
     frame: Rc<Frame>,
-    builtin_funcs: BTreeMap<Str, &'static native_func>
+    builtin_funcs: BTreeMap<Str, &'static NativeFuncPointer>
 }
 
 impl Drop for Interpreter {
@@ -45,7 +46,15 @@ impl Drop for Interpreter {
 
 impl Interpreter {
     pub fn new(codes: CodeObject) -> Self {
-        let mut builtin_funcs = BTreeMap::<Str, &'static native_func>::new();
+        //add Str attributes
+        unsafe {
+            let mut bmap = BTreeMap::<Str, &'static MethodFuncPointer>::new();
+            bmap.insert(Str::from("upper"), &upper);
+  
+            STR_ATTR = Some(bmap);
+        }
+
+        let mut builtin_funcs = BTreeMap::<Str, &'static NativeFuncPointer>::new();
         builtin_funcs.insert(Str::from("len"), &len);
 
         Self {
@@ -149,11 +158,18 @@ impl Interpreter {
                 },
 
                 byte_code::STORE_SUBSCR => {
-                    
                 }
 
                 byte_code::LOAD_ATTR => {
+                    //first get owner
+                    let owner = self.frame.stack.borrow_mut().pop().unwrap();
+                    //op_arg is the index of the attribute in names
+                    let attr = match self.frame.codes.names.get(op_arg).unwrap() {
+                        &Object::Str(ref s) => s,
+                        _ => panic!("Invalid arg {:?}", self.frame.codes.names.get(op_arg).unwrap())
+                    };
                     
+                    self.frame.stack.borrow_mut().push(owner.get_attr(attr));
                 }
 
                 /*byte_code::COMPARE_OP => {*/
@@ -283,6 +299,17 @@ impl Interpreter {
                         //native function doesn't has a RETURN_VALUE op, so don't build a frame.
                         Object::NativeFunction(nf) => {
                             self.frame.stack.borrow_mut().push(match nf.call(match args {
+                                None => Vec::<Object>::new(),
+                                Some(v) => v
+                            }) {
+                                None => Object::r#None,
+                                Some(v) => v
+                            });
+                        },
+
+                        //methods
+                        Object::Method(m) => {
+                            self.frame.stack.borrow_mut().push(match m.call(match args {
                                 None => Vec::<Object>::new(),
                                 Some(v) => v
                             }) {

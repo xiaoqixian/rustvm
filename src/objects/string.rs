@@ -10,21 +10,28 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::cmp::{PartialOrd, Ord, Ordering, PartialEq, Eq};
+use std::ops::Index;
 
 use crate::errors::Errors;
-use std::ops::Index;
 use crate::objects::object::Object;
+use crate::objects::function::MethodFuncPointer;
+
+pub static mut STR_ATTR: Option<BTreeMap<Str, &'static MethodFuncPointer>> = None;
 
 /**
  * define some python str methods
  * store them in a static map
  */
-fn upper(owner: &Str, args: Vec<Object>) -> Option<Object> {
+pub fn upper(owner: Rc<Object>, args: Vec<Object>) -> Option<Object> {
     let mut v = Vec::<u8>::new();
-    for i in owner.inner.iter() {
+    let s: &Str = match owner.as_ref() {
+        &Object::Str(ref s) => s,
+        _ => panic!("Invalid owner {:?}", owner)
+    };
+    for i in s.inner.iter() {
         let c = *i as char;
         if c <= 'z' && c >= 'a' {
-            v.push(*i + 32);
+            v.push(*i - 32);
         } else {
             v.push(*i);
         }
@@ -35,7 +42,6 @@ fn upper(owner: &Str, args: Vec<Object>) -> Option<Object> {
 #[derive(Clone)]
 pub struct Str {
     inner: Vec<u8>,
-    attr: BTreeMap<Self, Object>
 }
 
 impl PartialEq for Str {
@@ -87,7 +93,6 @@ impl std::convert::From<&str> for Str {
                 v.clone_from_slice(s.as_bytes());
                 v
             },
-            attr: BTreeMap::new()
         }
     }
 }
@@ -96,14 +101,13 @@ impl std::convert::From<Vec<u8>> for Str {
     fn from(v: Vec<u8>) -> Self {
         Self {
             inner: v,
-            attr: BTreeMap::new()
         }
     }
 }
 
 impl Str {
     pub fn new() -> Self {
-        Self {inner: Vec::new(), attr: BTreeMap::new()}
+        Self {inner: Vec::new()}
     }
 
     pub fn push(&mut self, c: char) {
