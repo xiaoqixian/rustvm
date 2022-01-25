@@ -16,6 +16,19 @@ use crate::objects::function::{Function, NativeFunction, Method};
 use crate::objects::{string::{Str, STR_ATTR}, list::List};
 use crate::code::binary_file_parser::CodeObject;
 
+/**
+ * define a macro to unwrap an Rc<Object> and get the reference to the inner.
+ */
+#[macro_export]
+macro_rules! unwrap_obj {
+    ($obj: expr, $type: ident) => {
+        match $obj.as_ref() {
+            &Object::$type(ref s) => s,
+            _ => panic!("Invalid obj {:?}", $obj.as_ref())
+        }
+    };
+}
+
 #[derive(Clone)]
 pub enum Object {
     r#None,
@@ -66,16 +79,16 @@ impl fmt::Display for Object {
 }
 
 impl Object {
-    pub fn get_attr(self, attr: &Str) -> Self {
-        match &self {
+    pub fn get_attr(owner: Rc<Self>, attr: &Str) -> Self {
+        match owner.as_ref() {
             &Self::Str(_) => {
                 //first search methods
                 if let Some(m) = unsafe {STR_ATTR.as_ref().unwrap().get(attr)} {
-                    return Object::Method(Method::from(Rc::new(self), m));
+                    return Object::Method(Method::from(owner, m));
                 }
                 panic!("Invalid attribute {}", attr)
             },
-            _ => panic!("Invalid arg {:?}", self)
+            _ => panic!("Invalid arg {:?}", owner)
         }
     }
 
@@ -159,7 +172,7 @@ impl Object {
                 &Self::Int(i) => if i >= l.inner.len() as i32 || i < 0 {
                     Err(Errors::IndexOutBounds(i))
                 } else {
-                    Ok((*&l.inner[i as usize]).clone())
+                    Ok((*l.inner[i as usize].as_ref()).clone())
                 },
                 _ => panic!("Invalid arg {:?}", rhs)
             }
@@ -174,7 +187,7 @@ impl Object {
                 if index > l.inner.len() {
                     Err(Errors::IndexOutBounds(i))
                 } else {
-                    *&mut l.inner[index] = new_item;
+                    //*&mut l.inner[index] = new_item;
                     Ok(())
                 }
             },

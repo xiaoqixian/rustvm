@@ -7,11 +7,13 @@
   > Copyright@ https://github.com/xiaoqixian
  **********************************************/
 
+use std::rc::Rc;
+
 use super::object::Object;
 
 #[derive(Clone, Debug)]
 pub struct List {
-    pub inner: Vec<Object> //make inner public is a lazy way to avoid implementing all methods of Vec<Object>
+    pub inner: Vec<Rc<Object>> //make inner public is a lazy way to avoid implementing all methods of Vec<Object>
 }
 
 impl List {
@@ -32,27 +34,27 @@ impl std::fmt::Display for List {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::from("[");
         if self.inner.len() > 0 {
-            s.push_str(format!("{}", self.inner[0]).as_str());
+            s.push_str(format!("{}", &self.inner[0]).as_str());
         }
 
         for i in 1..self.inner.len() {
-            s.push_str(format!(", {}", self.inner[i]).as_str());
+            s.push_str(format!(", {}", &self.inner[i]).as_str());
         }
 
         write!(f, "{}]", s)
     }
 }
 
-impl std::convert::From<Vec<Object>> for List {
-    fn from(inner: Vec<Object>) -> Self {
+impl std::convert::From<Vec<Rc<Object>>> for List {
+    fn from(inner: Vec<Rc<Object>>) -> Self {
         Self {
             inner
         }
     }
 }
 
-impl std::convert::From<std::collections::VecDeque<Object>> for List {
-    fn from(v: std::collections::VecDeque<Object>) -> Self {
+impl std::convert::From<std::collections::VecDeque<Rc<Object>>> for List {
+    fn from(v: std::collections::VecDeque<Rc<Object>>) -> Self {
         Self {
             inner: Vec::from(v)
         }

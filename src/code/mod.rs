@@ -176,6 +176,7 @@ pub enum Ops {
 
     CallFunctionVar,
 
+    Unkown
 }
 
 pub fn get_op(index: u8) -> Option<Ops> {
@@ -260,6 +261,6 @@ pub fn get_op(index: u8) -> Option<Ops> {
 
         140 => Some(Ops::CallFunctionVar),
 
-        _ => None
+        _ => Some(Ops::Unkown)
     }
 }

@@ -22,7 +22,7 @@ pub static mut STR_ATTR: Option<BTreeMap<Str, &'static MethodFuncPointer>> = Non
  * define some python str methods
  * store them in a static map
  */
-pub fn upper(owner: Rc<Object>, args: Vec<Object>) -> Option<Object> {
+pub fn upper(owner: Rc<Object>, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
     let mut v = Vec::<u8>::new();
     let s: &Str = match owner.as_ref() {
         &Object::Str(ref s) => s,
@@ -36,7 +36,7 @@ pub fn upper(owner: Rc<Object>, args: Vec<Object>) -> Option<Object> {
             v.push(*i);
         }
     }
-    Some(Object::Str(Str::from(v)))
+    Some(Str::from_vec(v))
 }
 
 #[derive(Clone)]
@@ -85,29 +85,31 @@ impl PartialOrd for Str {
     }
 }
 
-impl std::convert::From<&str> for Str {
-    fn from(s: &str) -> Self {
+impl Str {
+    pub fn raw() -> Self {
+        Self {inner: Vec::new()}
+    }
+
+    pub fn raw_from(s: &str) -> Self {
         Self {
             inner: {
                 let mut v = vec![0 as u8; s.len()];
                 v.clone_from_slice(s.as_bytes());
                 v
-            },
+            }
         }
     }
-}
 
-impl std::convert::From<Vec<u8>> for Str {
-    fn from(v: Vec<u8>) -> Self {
-        Self {
-            inner: v,
-        }
+    pub fn new() -> Rc<Object> {
+        Rc::new(Object::Str(Self {inner: Vec::new()}))
     }
-}
 
-impl Str {
-    pub fn new() -> Self {
-        Self {inner: Vec::new()}
+    pub fn from(s: &str) -> Rc<Object> {
+        Rc::new(Object::Str(Self::raw_from(s)))
+    }
+
+    pub fn from_vec(v: Vec<u8>) -> Rc<Object> {
+        Rc::new(Object::Str(Self {inner: v}))
     }
 
     pub fn push(&mut self, c: char) {

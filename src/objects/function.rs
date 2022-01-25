@@ -9,27 +9,31 @@
 
 use std::rc::Rc;
 
-use crate::code::binary_file_parser::CodeObject;
 use super::{object::Object, string::Str};
 
-pub type NativeFuncPointer = dyn Fn(Vec<Object>) -> Option<Object>;
-pub type MethodFuncPointer = dyn Fn(Rc<Object>, Vec<Object>) -> Option<Object>;
+pub type NativeFuncPointer = dyn Fn(Vec<Rc<Object>>) -> Option<Rc<Object>>;
+pub type MethodFuncPointer = dyn Fn(Rc<Object>, Vec<Rc<Object>>) -> Option<Rc<Object>>;
 
 #[derive(Clone)]
 pub struct Function {
-    pub func_codes: CodeObject,
-    pub func_name: Str,
+    pub func_codes: Rc<Object>,
+    pub func_name: Rc<Object>,
     pub flags: u32,
-    pub defaults: Option<Vec<Object>>,
+    pub defaults: Option<Vec<Rc<Object>>>,
 }
 
 impl Function {
-    pub fn new(codes: CodeObject, defaults: Option<Vec<Object>>) -> Self {
-        Self {
-            func_name: codes.co_name.clone(),
-            func_codes: codes,
-            flags: 0,
-            defaults,
+    pub fn new(codes_wrap: Rc<Object>, defaults: Option<Vec<Rc<Object>>>) -> Self {
+        match codes_wrap.as_ref() {
+            &Object::CodeObject(ref codes) => {
+                Self {
+                    func_name: codes.co_name.clone(),
+                    func_codes: codes_wrap,
+                    flags: 0,
+                    defaults
+                }
+            },
+            _ => panic!("Invalid arg {:?}", codes_wrap)
         }
     }
 }
@@ -48,7 +52,7 @@ impl NativeFunction {
         }
     }
 
-    pub fn call(&self, args: Vec<Object>) -> Option<Object> {
+    pub fn call(&self, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
         let nfp = self.nfp;
         nfp(args)
     }
@@ -68,12 +72,12 @@ impl Method {
         }
     }
 
-    pub fn call(&self, args: Vec<Object>) -> Option<Object> {
+    pub fn call(&self, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
         let mfp = self.mfp;
         mfp(self.owner.clone(), args)
     }
 }
 
-pub fn len(args: Vec<Object>) -> Option<Object> {
-    Some(Object::Int(args[0].len()))
+pub fn len(args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
+    Some(Rc::new(Object::Int(args[0].len())))
 }
