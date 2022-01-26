@@ -112,7 +112,7 @@ impl Frame {
                     locals: RefCell::new(BTreeMap::new()),
                     globals: BTreeMap::new(),
                     fast_locals: {
-                        let arg_num = match func.func_codes.as_ref() {
+                        let mut arg_num = match func.func_codes.as_ref() {
                             &Object::CodeObject(ref c) => c.argcount,
                             _ => panic!("Invalid arg {:?}", codes)
                         };
@@ -135,10 +135,11 @@ impl Frame {
 
                         Some(RefCell::new(fast_locals))
                     },
-                    codes: func.func_codes,
+                    codes: func.func_codes.clone(),
                     sender
                 }
-            }
+            },
+            _ => panic!("Invalid frame codes {:?}", codes)
         })
     }
 }

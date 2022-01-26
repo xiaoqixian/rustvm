@@ -21,8 +21,15 @@
 # Slice3: 33
 # """
 
-def func(a, b = 3):
-    print a + b
+class Fuck:
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
 
-func(1, 2)
-func(1)
+    def calc(self):
+        return self.a + self.b
+
+a = Fuck(1,2)
+print a.calc()
+
+print list
