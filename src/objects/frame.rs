@@ -89,12 +89,18 @@ impl Frame {
 impl Frame {
     pub fn new(codes: Rc<Object>, args: Option<Vec<Rc<Object>>>, sender: Option<Rc<Self>>) -> Rc<Self> {
         Rc::new(match codes.as_ref() {
+            //First frame constructed
             &Object::CodeObject(_) => {
                 Self {
                     pc: RefCell::new(0),
                     stack: RefCell::new(Vec::new()),
                     loop_stack: RefCell::new(Vec::new()),
-                    locals: RefCell::new(BTreeMap::new()),
+                    locals: RefCell::new({
+                        let mut locals = BTreeMap::<Str, Rc<Object>>::new();
+                        //module name of the first name is always __main__.
+                        locals.insert(Str::raw_from("__module__"), Str::from("__main__"));
+                        locals
+                    }),
                     globals: BTreeMap::new(),
                     fast_locals: match args {
                         None => None,

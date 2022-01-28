@@ -11,37 +11,40 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::cmp::{PartialOrd, Ord, Ordering, PartialEq, Eq};
 use std::ops::Index;
+use std::any::Any;
 
 use crate::errors::Errors;
-use crate::objects::object::Object;
+use crate::objects::object::{Object, ObjRef};
+use crate::objects::klass::{Klass, KlassRef};
 use crate::objects::function::MethodFuncPointer;
+use crate::cast;
 
-pub static mut STR_ATTR: Option<BTreeMap<Str, &'static MethodFuncPointer>> = None;
-
-/**
- * define some python str methods
- * store them in a static map
- */
-pub fn upper(owner: Rc<Object>, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
-    let mut v = Vec::<u8>::new();
-    let s: &Str = match owner.as_ref() {
-        &Object::Str(ref s) => s,
-        _ => panic!("Invalid owner {:?}", owner)
-    };
-    for i in s.inner.iter() {
-        let c = *i as char;
-        if c <= 'z' && c >= 'a' {
-            v.push(*i - 32);
-        } else {
-            v.push(*i);
-        }
-    }
-    Some(Str::from_vec(v))
-}
+//pub static mut STR_ATTR: Option<BTreeMap<Str, &'static MethodFuncPointer>> = None;
+pub static STRING_KLASS_INSTANCE: StringKlass = StringKlass {mod_str: "str"};
+pub static NONE: Rc<Str> = Rc::new(Str::raw_from("None"));
+pub static TRUE: Rc<Str> = Rc::new(Str::raw_from("True"));
+pub static FALSE: Rc<Str> = Rc::new(Str::raw_from("False"));
 
 #[derive(Clone)]
 pub struct Str {
     inner: Vec<u8>,
+    klass: &'static StringKlass
+}
+
+pub struct StringKlass {
+    mod_str: &'static str
+}
+
+impl Klass for StringKlass {
+    fn as_any(&self) -> &dyn Any {self}
+}
+
+impl Object for Str {
+    fn as_any(&self) -> &dyn Any {self}
+
+    fn klass(&self) -> KlassRef {
+        self.klass
+    }
 }
 
 impl PartialEq for Str {
@@ -86,8 +89,11 @@ impl PartialOrd for Str {
 }
 
 impl Str {
-    pub fn raw() -> Self {
-        Self {inner: Vec::new()}
+    pub fn new_raw() -> Self {
+        Self {
+            inner: Vec::new(),
+            klass: &STRING_KLASS_INSTANCE
+        }
     }
 
     pub fn raw_from(s: &str) -> Self {
@@ -96,20 +102,27 @@ impl Str {
                 let mut v = vec![0 as u8; s.len()];
                 v.clone_from_slice(s.as_bytes());
                 v
-            }
+            },
+            klass: &STRING_KLASS_INSTANCE
         }
     }
 
-    pub fn new() -> Rc<Object> {
-        Rc::new(Object::Str(Self {inner: Vec::new()}))
+    pub fn new() -> ObjRef {
+        Rc::new(Self {
+            inner: Vec::new(),
+            klass: &STRING_KLASS_INSTANCE
+        })
     }
 
-    pub fn from(s: &str) -> Rc<Object> {
-        Rc::new(Object::Str(Self::raw_from(s)))
+    pub fn from(s: &str) -> ObjRef {
+        Rc::new(Self::raw_from(s))
     }
 
-    pub fn from_vec(v: Vec<u8>) -> Rc<Object> {
-        Rc::new(Object::Str(Self {inner: v}))
+    pub fn from_vec(v: Vec<u8>) -> ObjRef {
+        Rc::new(Self {
+            inner: v,
+            klass: &STRING_KLASS_INSTANCE
+        })
     }
 
     pub fn push(&mut self, c: char) {
@@ -124,6 +137,10 @@ impl Str {
             Ok(v) => Ok(v),
             Err(_) => Err(Errors::Utf8Error(format!("{:?}", self.inner)))
         }
+    }
+
+    pub fn inner_ref<'a>(&'a self) -> &'a Vec<u8> {
+        &self.inner
     }
 
     pub fn len(&self) -> usize {
@@ -162,3 +179,26 @@ impl std::fmt::Display for Str {
         write!(f, "{}", self.into().unwrap())
     }
 }
+
+/*
+ * define some python str methods
+ * store them in a static map
+ */
+//pub fn upper(owner: ObjRef, args: Vec<ObjRef>) -> Option<ObjRef> {
+    //let mut v = Vec::<u8>::new();
+    //let s: &Str = match owner.as_ref() {
+        //&Object::Str(ref s) => s,
+        //_ => panic!("Invalid owner {:?}", owner)
+    //};
+    //for i in s.inner.iter() {
+        //let c = *i as char;
+        //if c <= 'z' && c >= 'a' {
+            //v.push(*i - 32);
+        //} else {
+            //v.push(*i);
+        //}
+    //}
+    //Some(Str::from_vec(v))
+//}
+
+

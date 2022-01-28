@@ -12,6 +12,7 @@ use std::collections::{VecDeque, BTreeMap};
 
 use crate::objects::{object::{Object}, frame::{Frame, Block}, list::List};
 use crate::objects::function::{Function, NativeFunction, NativeFuncPointer, MethodFuncPointer, len};
+use crate::objects::{klass::Klass, r#type::TypeObject};
 use crate::objects::string::{Str, STR_ATTR, upper};
 use crate::code::binary_file_parser::CodeObject;
 use crate::code::{byte_code, get_op, byte_code::compare};
@@ -35,7 +36,8 @@ use crate::{info, debug, error, unwrap_obj};
 
 pub struct Interpreter {
     frame: Rc<Frame>,
-    builtin_funcs: BTreeMap<Str, &'static NativeFuncPointer>
+    builtin_funcs: BTreeMap<Str, &'static NativeFuncPointer>,
+    builtins: BTreeMap<Str, Rc<Object>>,
 }
 
 //impl Drop for Interpreter {
@@ -57,9 +59,13 @@ impl Interpreter {
         let mut builtin_funcs = BTreeMap::<Str, &'static NativeFuncPointer>::new();
         builtin_funcs.insert(Str::raw_from("len"), &len);
 
+        let mut builtins = BTreeMap::<Str, Rc<Object>>::new();
+        builtins.insert(Str::raw_from("list"), Rc::new(Object::Type(TypeObject::new(Klass::ListKlass))));
+
         Self {
             frame: Frame::new(Rc::new(Object::CodeObject(codes)), None, None),
-            builtin_funcs
+            builtin_funcs,
+            builtins
         }
     }
 

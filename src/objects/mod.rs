@@ -8,7 +8,11 @@
  **********************************************/
 
 pub mod object;
+pub mod integer;
 pub mod string;
 pub mod frame;
 pub mod function;
 pub mod list;
+//pub mod r#type;
+pub mod klass;
+pub mod code_object;

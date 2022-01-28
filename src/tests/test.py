@@ -32,4 +32,4 @@ class Fuck:
 a = Fuck(1,2)
 print a.calc()
 
-print list
+print Fuck

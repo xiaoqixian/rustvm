@@ -9,36 +9,58 @@
 
 use std::rc::Rc;
 
-use super::{object::Object, string::Str};
+use super::{object::{Object, ObjRef}, string::Str};
+use super::code_object::CodeObject;
+use super::klass::{KlassRef, Klass};
+use crate::cast;
 
-pub type NativeFuncPointer = dyn Fn(Vec<Rc<Object>>) -> Option<Rc<Object>>;
-pub type MethodFuncPointer = dyn Fn(Rc<Object>, Vec<Rc<Object>>) -> Option<Rc<Object>>;
+pub type NativeFuncPointer = dyn Fn(Vec<ObjRef>) -> Option<ObjRef>;
+pub type MethodFuncPointer = dyn Fn(ObjRef, Vec<ObjRef>) -> Option<ObjRef>;
+pub static FUNCTION_KLASS_INSTANCE: FunctionKlass = FunctionKlass {mod_str: "FunctionKlass"};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Function {
-    pub func_codes: Rc<Object>,
-    pub func_name: Rc<Object>,
+    pub func_codes: ObjRef,
+    pub func_name: ObjRef,
     pub flags: u32,
-    pub defaults: Option<Vec<Rc<Object>>>,
+    pub defaults: Option<Vec<ObjRef>>,
+    pub klass: &'static FunctionKlass
+}
+
+#[derive(Clone, Debug)]
+pub struct FunctionKlass {
+    mod_str: &'static str
+}
+
+impl Klass for FunctionKlass {
+    fn as_any(&self) -> &dyn std::any::Any {self}
+}
+
+impl Object for Function {
+    fn as_any(&self) -> &dyn std::any::Any {self}
+
+    fn klass(&self) -> KlassRef {self.klass}
 }
 
 impl Function {
-    pub fn new(codes_wrap: Rc<Object>, defaults: Option<Vec<Rc<Object>>>) -> Self {
-        match codes_wrap.as_ref() {
-            &Object::CodeObject(ref codes) => {
-                Self {
-                    func_name: codes.co_name.clone(),
-                    func_codes: codes_wrap,
-                    flags: 0,
-                    defaults
-                }
-            },
-            _ => panic!("Invalid arg {:?}", codes_wrap)
-        }
+    pub fn new(codes_wrap: ObjRef, defaults: Option<Vec<ObjRef>>) -> ObjRef {
+        Rc::new(Self {
+            func_name: cast!(codes_wrap, CodeObject).co_name.clone(),
+            func_codes: codes_wrap,
+            flags: 0,
+            defaults,
+            klass: &FUNCTION_KLASS_INSTANCE
+        })
     }
 }
 
-#[derive(Clone)]
+impl std::fmt::Display for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<func {}>", self.func_name)
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct NativeFunction {
     pub nfp: &'static NativeFuncPointer,
     pub func_name: Str
@@ -52,32 +74,36 @@ impl NativeFunction {
         }
     }
 
-    pub fn call(&self, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
+    pub fn call(&self, args: Vec<ObjRef>) -> Option<ObjRef> {
         let nfp = self.nfp;
         nfp(args)
     }
 }
 
+impl std::fmt::Display for NativeFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<native_func {}>", self.func_name)
+    }
+}
+
+impl Object for 
+
 #[derive(Clone)]
 pub struct Method {
-    pub owner: Rc<Object>,
+    pub owner: ObjRef,
     pub mfp: &'static MethodFuncPointer
 }
 
 impl Method {
-    pub fn from(owner: Rc<Object>, mfp: &'static MethodFuncPointer) -> Self {
+    pub fn from(owner: ObjRef, mfp: &'static MethodFuncPointer) -> Self {
         Self {
             owner,
             mfp
         }
     }
 
-    pub fn call(&self, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
+    pub fn call(&self, args: Vec<ObjRef>) -> Option<ObjRef> {
         let mfp = self.mfp;
         mfp(self.owner.clone(), args)
     }
-}
-
-pub fn len(args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
-    Some(Rc::new(Object::Int(args[0].len())))
 }
