@@ -10,13 +10,11 @@
 use std::rc::Rc;
 use std::collections::{VecDeque, BTreeMap};
 
-use crate::objects::{object::{Object}, frame::{Frame, Block}, list::List};
-use crate::objects::function::{Function, NativeFunction, NativeFuncPointer, MethodFuncPointer, len};
-use crate::objects::string::{Str, STR_ATTR, upper};
-use crate::code::binary_file_parser::CodeObject;
-use crate::code::{byte_code, get_op, byte_code::compare};
+use crate::objects::{Object, string::Str, integer::Integer, list::List};
+use super::frame::Frame;
 use crate::errors::Errors;
-use crate::{info, debug, error, unwrap_obj};
+use crate::code::{byte_code, get_op, code_object::CodeObject};
+use crate::{info, debug, cast};
 
 /*macro_rules! pop {*/
     /*($self:ident$(, $field:ident)*) => {*/
@@ -35,7 +33,7 @@ use crate::{info, debug, error, unwrap_obj};
 
 pub struct Interpreter {
     frame: Rc<Frame>,
-    builtin_funcs: BTreeMap<Str, &'static NativeFuncPointer>
+    //builtin_funcs: BTreeMap<Str, &'static NativeFuncPointer>
 }
 
 //impl Drop for Interpreter {
@@ -45,21 +43,21 @@ pub struct Interpreter {
 //}
 
 impl Interpreter {
-    pub fn new(codes: CodeObject) -> Self {
+    pub fn new(codes: Object) -> Self {
         //add Str attributes
-        unsafe {
-            let mut bmap = BTreeMap::<Str, &'static MethodFuncPointer>::new();
-            bmap.insert(Str::raw_from("upper"), &upper);
+/*        unsafe {*/
+            /*let mut bmap = BTreeMap::<Str, &'static MethodFuncPointer>::new();*/
+            /*bmap.insert(Str::raw_from("upper"), &upper);*/
   
-            STR_ATTR = Some(bmap);
-        }
+            /*STR_ATTR = Some(bmap);*/
+        /*}*/
 
-        let mut builtin_funcs = BTreeMap::<Str, &'static NativeFuncPointer>::new();
-        builtin_funcs.insert(Str::raw_from("len"), &len);
+        /*let mut builtin_funcs = BTreeMap::<Str, &'static NativeFuncPointer>::new();*/
+        /*builtin_funcs.insert(Str::raw_from("len"), &len);*/
 
         Self {
-            frame: Frame::new(Rc::new(Object::CodeObject(codes)), None, None),
-            builtin_funcs
+            frame: Frame::new(codes, None, None),
+            //builtin_funcs
         }
     }
 
@@ -92,87 +90,65 @@ impl Interpreter {
 
                 //byte_code::LOAD_CONST => {self.frame.stack.borrow_mut().push(self.frame.codes.consts[op_arg].clone()); debug!("load const {:?}", self.frame.codes.consts[op_arg]);},
                 byte_code::LOAD_CONST => {
-                    self.frame.stack.borrow_mut().push(unwrap_obj!(self.frame.codes, CodeObject).consts[op_arg].clone());
+                    self.frame.stack.borrow_mut().push(self.frame.get_const(op_arg));
                 }
                 
                 byte_code::LOAD_NAME => {
-                    match unwrap_obj!(self.frame.codes, CodeObject).names[op_arg].as_ref() {
-                        &Object::Str(ref s) => {
-                            //LGTB principle
-                            //first search locals
-                            if let Some(o) = self.frame.locals.borrow().get(s) {
-                                self.frame.stack.borrow_mut().push(o.clone());
-                                continue;
-                            }
-                            
-                            //then search globals
-
-                            //then search builtin functions.
-                            if let Some(nfp) = self.builtin_funcs.get(s) {
-                                self.frame.stack.borrow_mut().push(Rc::new(Object::NativeFunction(NativeFunction::new(*nfp, s))));
-                                continue;
-                            }
-                        },
-                        v => panic!("Invalid arg {:?}", v)
-                    }
+                    self.frame.stack.borrow_mut().push(self.frame.get_local(self.frame.get_name(op_arg)));
                 },
 
-                byte_code::LOAD_FAST => {
-                    self.frame.stack.borrow_mut().push((*&self.frame.fast_locals.as_ref().unwrap().borrow()[op_arg]).clone());
-                },
+                //byte_code::LOAD_FAST => {
+                    //self.frame.stack.borrow_mut().push((*&self.frame.fast_locals.as_ref().unwrap().borrow()[op_arg]).clone());
+                //},
 
-                byte_code::STORE_FAST => {
-                    let v = self.frame.stack.borrow_mut().pop().unwrap();
-                    *&mut self.frame.fast_locals.as_ref().unwrap().borrow_mut()[op_arg] = v;
-                }
+                //byte_code::STORE_FAST => {
+                    //let v = self.frame.stack.borrow_mut().pop().unwrap();
+                    //*&mut self.frame.fast_locals.as_ref().unwrap().borrow_mut()[op_arg] = v;
+                //}
 
                 byte_code::STORE_NAME => {
-                    self.frame.locals.borrow_mut().insert({
-                        match unwrap_obj!(self.frame.codes, CodeObject).names[op_arg].as_ref() {
-                            &Object::Str(ref s) => (*s).clone(),
-                            x => return Err(Errors::InvalidObject(format!("{:?}", x)))
-                        }}, self.frame.stack.borrow_mut().pop().unwrap());
+                    self.frame.store_name(op_arg, self.frame.stack.borrow_mut().pop().unwrap());
                 },
 
                 byte_code::PRINT_ITEM => {
-                    self.frame.stack.borrow_mut().pop().unwrap().print()?;
+                    self.frame.stack.borrow_mut().pop().unwrap().print();
                 },
 
                 byte_code::PRINT_NEWLINE => {
                     println!("\n");
                 },
 
-                byte_code::BINARY_ADD | byte_code::BINARY_SUBTRACT |
-                byte_code::BINARY_MULTIPLY | byte_code::BINARY_DIVIDE |
-                byte_code::BINARY_MOD | byte_code::BINARY_SUBSCR => {
-                    let p2 = self.frame.stack.borrow_mut().pop().unwrap();
-                    let p1 = self.frame.stack.borrow_mut().pop().unwrap();
-                    match op_code {
-                        byte_code::BINARY_ADD => self.frame.stack.borrow_mut().push(Rc::new(p1.add(&p2)?)),
-                        byte_code::BINARY_SUBTRACT => self.frame.stack.borrow_mut().push(Rc::new(p1.sub(&p2)?)),
-                        byte_code::BINARY_MULTIPLY => self.frame.stack.borrow_mut().push(Rc::new(p1.mul(&p2)?)),
-                        byte_code::BINARY_DIVIDE => self.frame.stack.borrow_mut().push(Rc::new(p1.div(&p2)?)),
-                        byte_code::BINARY_MOD => self.frame.stack.borrow_mut().push(Rc::new(p1.r#mod(&p2)?)),
-                        byte_code::BINARY_SUBSCR => self.frame.stack.borrow_mut().push(Rc::new(p1.subscr(&p2)?)),
-                        _ => {}
+                //byte_code::BINARY_ADD | byte_code::BINARY_SUBTRACT |
+                //byte_code::BINARY_MULTIPLY | byte_code::BINARY_DIVIDE |
+                //byte_code::BINARY_MOD | byte_code::BINARY_SUBSCR => {
+                    //let p2 = self.frame.stack.borrow_mut().pop().unwrap();
+                    //let p1 = self.frame.stack.borrow_mut().pop().unwrap();
+                    //match op_code {
+                        //byte_code::BINARY_ADD => self.frame.stack.borrow_mut().push(Rc::new(p1.add(&p2)?)),
+                        //byte_code::BINARY_SUBTRACT => self.frame.stack.borrow_mut().push(Rc::new(p1.sub(&p2)?)),
+                        //byte_code::BINARY_MULTIPLY => self.frame.stack.borrow_mut().push(Rc::new(p1.mul(&p2)?)),
+                        //byte_code::BINARY_DIVIDE => self.frame.stack.borrow_mut().push(Rc::new(p1.div(&p2)?)),
+                        //byte_code::BINARY_MOD => self.frame.stack.borrow_mut().push(Rc::new(p1.r#mod(&p2)?)),
+                        //byte_code::BINARY_SUBSCR => self.frame.stack.borrow_mut().push(Rc::new(p1.subscr(&p2)?)),
+                        //_ => {}
 
-                    }
-                },
+                    //}
+                //},
 
-                byte_code::STORE_SUBSCR => {
-                }
+/*                byte_code::STORE_SUBSCR => {*/
+                /*}*/
 
-                byte_code::LOAD_ATTR => {
-                    //first get owner
-                    let owner = self.frame.stack.borrow_mut().pop().unwrap();
-                    //op_arg is the index of the attribute in names
-                    let attr = match unwrap_obj!(self.frame.codes, CodeObject).names[op_arg].as_ref() {
-                        &Object::Str(ref s) => s,
-                        e => panic!("Invalid arg {:?}", e)
-                    };
+                /*byte_code::LOAD_ATTR => {*/
+                    /*//first get owner*/
+                    /*let owner = self.frame.stack.borrow_mut().pop().unwrap();*/
+                    /*//op_arg is the index of the attribute in names*/
+                    /*let attr = match unwrap_obj!(self.frame.codes, CodeObject).names[op_arg].as_ref() {*/
+                        /*&Object::Str(ref s) => s,*/
+                        /*e => panic!("Invalid arg {:?}", e)*/
+                    /*};*/
                     
-                    self.frame.stack.borrow_mut().push(Rc::new(Object::get_attr(owner, attr)));
-                }
+                    /*self.frame.stack.borrow_mut().push(Rc::new(Object::get_attr(owner, attr)));*/
+                /*}*/
 
                 /*byte_code::COMPARE_OP => {*/
                     /*p2 = pop!(self, frame, stack);*/
@@ -205,118 +181,149 @@ impl Interpreter {
                 /*},*/
 
                 byte_code::BUILD_LIST => {
-                    let mut vd = VecDeque::<Rc<Object>>::with_capacity(op_arg);
+                    let mut vd = VecDeque::<Object>::with_capacity(op_arg);
                     while op_arg > 0 {
                         vd.push_front(self.frame.stack.borrow_mut().pop().unwrap());
                         op_arg -= 1;
                     }
-                    self.frame.stack.borrow_mut().push(Rc::new(Object::List(List::from(vd))));
+                    self.frame.stack.borrow_mut().push(List::from_vd(vd));
+                },
+
+                byte_code::SLICE0 => {
+                    //slice0 indexes the whole list
+                    //as the whole list is already on the top of the stack,
+                    //so we don't need to do anything
+                },
+
+                byte_code::SLICE1 => {
+                    //slice1 indexes from an start index to the end
+                    let start = self.frame.stack.borrow_mut().pop().unwrap();
+                    let lst = self.frame.stack.borrow_mut().pop().unwrap();
+
+                    self.frame.stack.borrow_mut().push(cast!(lst, List).range_index(Some(start), None));
+                },
+
+                byte_code::SLICE2 => {
+                    //slice2 indexes from the start to an end index.
+                    let end = self.frame.stack.borrow_mut().pop().unwrap();
+                    let lst = self.frame.stack.borrow_mut().pop().unwrap();
+
+                    self.frame.stack.borrow_mut().push(cast!(lst, List).range_index(None, Some(end)));
+                },
+
+                byte_code::SLICE3 => {
+                    //slice3 indexes from a start index to an end index.
+                    let end = self.frame.stack.borrow_mut().pop().unwrap();
+                    let start = self.frame.stack.borrow_mut().pop().unwrap();
+                    let lst = self.frame.stack.borrow_mut().pop().unwrap();
+
+                    self.frame.stack.borrow_mut().push(cast!(lst, List).range_index(Some(start), Some(end)));
                 }
 
-                byte_code::POP_JUMP_IF_TRUE => {
-                    match self.frame.stack.borrow_mut().pop().unwrap().as_ref() {
-                        Object::True => self.frame.set_pc(op_arg),
-                        Object::False => {},
-                        _ => panic!("Invalid arg")
-                    }
-                },
+                /*byte_code::POP_JUMP_IF_TRUE => {*/
+                    /*match self.frame.stack.borrow_mut().pop().unwrap().as_ref() {*/
+                        /*Object::True => self.frame.set_pc(op_arg),*/
+                        /*Object::False => {},*/
+                        /*_ => panic!("Invalid arg")*/
+                    /*}*/
+                /*},*/
 
-                byte_code::POP_JUMP_IF_FALSE => {
-                    match self.frame.stack.borrow_mut().pop().unwrap().as_ref() {
-                        Object::False => self.frame.set_pc(op_arg),
-                        Object::True => {},
-                        _ => panic!("Invalid arg")
-                    }
-                },
+                /*byte_code::POP_JUMP_IF_FALSE => {*/
+                    /*match self.frame.stack.borrow_mut().pop().unwrap().as_ref() {*/
+                        /*Object::False => self.frame.set_pc(op_arg),*/
+                        /*Object::True => {},*/
+                        /*_ => panic!("Invalid arg")*/
+                    /*}*/
+                /*},*/
 
-                byte_code::JUMP_ABSOLUTE => {
-                    self.frame.set_pc(op_arg);
-                }
+                /*byte_code::JUMP_ABSOLUTE => {*/
+                    /*self.frame.set_pc(op_arg);*/
+                /*}*/
 
-                byte_code::JUMP_FORWARD => {
-                    self.frame.add_pc_n(op_arg);
-                },
+                /*byte_code::JUMP_FORWARD => {*/
+                    /*self.frame.add_pc_n(op_arg);*/
+                /*},*/
 
-                byte_code::SETUP_LOOP => {//op_arg: target address after loop
-                    let block = Block::new(op_code, self.frame.get_pc() + op_arg, self.frame.stack.borrow_mut().len());
-                    self.frame.loop_stack.borrow_mut().push(block);
-                },
+                /*byte_code::SETUP_LOOP => {//op_arg: target address after loop*/
+                    /*let block = Block::new(op_code, self.frame.get_pc() + op_arg, self.frame.stack.borrow_mut().len());*/
+                    /*self.frame.loop_stack.borrow_mut().push(block);*/
+                /*},*/
 
-                byte_code::POP_BLOCK => {
-                    let block = self.frame.loop_stack.borrow_mut().pop().unwrap();
-                    if self.frame.stack.borrow_mut().len() < block.level {
-                        panic!("stack invaded");
-                    }
-                    while self.frame.stack.borrow_mut().len() > block.level {
-                        self.frame.stack.borrow_mut().pop();
-                    }
-                },
+                /*byte_code::POP_BLOCK => {*/
+                    /*let block = self.frame.loop_stack.borrow_mut().pop().unwrap();*/
+                    /*if self.frame.stack.borrow_mut().len() < block.level {*/
+                        /*panic!("stack invaded");*/
+                    /*}*/
+                    /*while self.frame.stack.borrow_mut().len() > block.level {*/
+                        /*self.frame.stack.borrow_mut().pop();*/
+                    /*}*/
+                /*},*/
 
-                byte_code::BREAK_LOOP => {
-                    let block = self.frame.loop_stack.borrow_mut().pop().unwrap();
-                    if self.frame.stack.borrow_mut().len() < block.level {
-                        panic!("stack invaded");
-                    }
-                    while self.frame.stack.borrow_mut().len() > block.level {
-                        self.frame.stack.borrow_mut().pop();
-                    }
-                    self.frame.set_pc(block.target);
-                },
+                /*byte_code::BREAK_LOOP => {*/
+                    /*let block = self.frame.loop_stack.borrow_mut().pop().unwrap();*/
+                    /*if self.frame.stack.borrow_mut().len() < block.level {*/
+                        /*panic!("stack invaded");*/
+                    /*}*/
+                    /*while self.frame.stack.borrow_mut().len() > block.level {*/
+                        /*self.frame.stack.borrow_mut().pop();*/
+                    /*}*/
+                    /*self.frame.set_pc(block.target);*/
+                /*},*/
 
-                byte_code::MAKE_FUNCTION => {
-                    let code_wrap = self.frame.stack.borrow_mut().pop().unwrap();
-                    let defaults = if op_arg > 0 {
-                        let mut defaults = VecDeque::<Rc<Object>>::with_capacity(op_arg);
-                        while op_arg > 0 {
-                            defaults.push_front(self.frame.stack.borrow_mut().pop().unwrap());
-                            op_arg -= 1;
-                        }
-                        Some(Vec::from(defaults))
-                    } else {None};
+                /*byte_code::MAKE_FUNCTION => {*/
+                    /*let code_wrap = self.frame.stack.borrow_mut().pop().unwrap();*/
+                    /*let defaults = if op_arg > 0 {*/
+                        /*let mut defaults = VecDeque::<Rc<Object>>::with_capacity(op_arg);*/
+                        /*while op_arg > 0 {*/
+                            /*defaults.push_front(self.frame.stack.borrow_mut().pop().unwrap());*/
+                            /*op_arg -= 1;*/
+                        /*}*/
+                        /*Some(Vec::from(defaults))*/
+                    /*} else {None};*/
 
-                    self.frame.stack.borrow_mut().push(Rc::new(Object::Function(Function::new(code_wrap, defaults))));
-                }
+                    /*self.frame.stack.borrow_mut().push(Rc::new(Object::Function(Function::new(code_wrap, defaults))));*/
+                /*}*/
 
-                byte_code::CALL_FUNCTION => {
-                    //receive arguments for the function is called.
-                    let args = if op_arg > 0 {
-                        let mut args = VecDeque::<Rc<Object>>::with_capacity(op_arg);
-                        while op_arg > 0 {
-                            args.push_front(self.frame.stack.borrow_mut().pop().unwrap());
-                            op_arg -= 1;
-                        }
-                        Some(Vec::from(args))
-                    } else {None};
+                /*byte_code::CALL_FUNCTION => {*/
+                    /*//receive arguments for the function is called.*/
+                    /*let args = if op_arg > 0 {*/
+                        /*let mut args = VecDeque::<Rc<Object>>::with_capacity(op_arg);*/
+                        /*while op_arg > 0 {*/
+                            /*args.push_front(self.frame.stack.borrow_mut().pop().unwrap());*/
+                            /*op_arg -= 1;*/
+                        /*}*/
+                        /*Some(Vec::from(args))*/
+                    /*} else {None};*/
 
-                    let func_wrap = self.frame.stack.borrow_mut().pop().unwrap();
-                    match func_wrap.as_ref() {
-                        &Object::Function(_) => {
-                            self.build_frame(func_wrap, args);
-                        },
-                        //native function doesn't has a RETURN_VALUE op, so don't build a frame.
-                        &Object::NativeFunction(ref nf) => {
-                            self.frame.stack.borrow_mut().push(match nf.call(match args {
-                                None => Vec::<Rc<Object>>::new(),
-                                Some(v) => v
-                            }) {
-                                None => Rc::new(Object::r#None),
-                                Some(v) => v
-                            });
-                        },
+                    /*let func_wrap = self.frame.stack.borrow_mut().pop().unwrap();*/
+                    /*match func_wrap.as_ref() {*/
+                        /*&Object::Function(_) => {*/
+                            /*self.build_frame(func_wrap, args);*/
+                        /*},*/
+                        /*//native function doesn't has a RETURN_VALUE op, so don't build a frame.*/
+                        /*&Object::NativeFunction(ref nf) => {*/
+                            /*self.frame.stack.borrow_mut().push(match nf.call(match args {*/
+                                /*None => Vec::<Rc<Object>>::new(),*/
+                                /*Some(v) => v*/
+                            /*}) {*/
+                                /*None => Rc::new(Object::r#None),*/
+                                /*Some(v) => v*/
+                            /*});*/
+                        /*},*/
 
-                        //methods
-                        &Object::Method(ref m) => {
-                            self.frame.stack.borrow_mut().push(match m.call(match args {
-                                None => Vec::<Rc<Object>>::new(),
-                                Some(v) => v
-                            }) {
-                                None => Rc::new(Object::r#None),
-                                Some(v) => v
-                            });
-                        }
-                        v => panic!("Invalid function {:?}", v)
-                    }
-                }
+                        /*//methods*/
+                        /*&Object::Method(ref m) => {*/
+                            /*self.frame.stack.borrow_mut().push(match m.call(match args {*/
+                                /*None => Vec::<Rc<Object>>::new(),*/
+                                /*Some(v) => v*/
+                            /*}) {*/
+                                /*None => Rc::new(Object::r#None),*/
+                                /*Some(v) => v*/
+                            /*});*/
+                        /*}*/
+                        /*v => panic!("Invalid function {:?}", v)*/
+                    /*}*/
+                /*}*/
 
                 byte_code::RETURN_VALUE => {
                     self.frame.stack.borrow_mut().pop();
@@ -334,7 +341,7 @@ impl Interpreter {
     }
 
     #[inline]
-    fn build_frame(&mut self, callable: Rc<Object>, args: Option<Vec<Rc<Object>>>) {
+    fn build_frame(&mut self, callable: Object, args: Option<Vec<Object>>) {
         self.frame = Frame::new(callable, args, Some(self.frame.clone()));
     }
 }

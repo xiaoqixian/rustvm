@@ -13,35 +13,41 @@ use std::cmp::{PartialOrd, Ord, Ordering, PartialEq, Eq};
 use std::ops::Index;
 
 use crate::errors::Errors;
-use crate::objects::object::Object;
-use crate::objects::function::MethodFuncPointer;
+use crate::objects::object::Object as ObjectTrait;
+use super::{Object, klass::Klass};
 
-pub static mut STR_ATTR: Option<BTreeMap<Str, &'static MethodFuncPointer>> = None;
-
-/**
+/*
  * define some python str methods
  * store them in a static map
  */
-pub fn upper(owner: Rc<Object>, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
-    let mut v = Vec::<u8>::new();
-    let s: &Str = match owner.as_ref() {
-        &Object::Str(ref s) => s,
-        _ => panic!("Invalid owner {:?}", owner)
-    };
-    for i in s.inner.iter() {
-        let c = *i as char;
-        if c <= 'z' && c >= 'a' {
-            v.push(*i - 32);
-        } else {
-            v.push(*i);
-        }
-    }
-    Some(Str::from_vec(v))
-}
+//pub fn upper(owner: Rc<Object>, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
+    //let mut v = Vec::<u8>::new();
+    //let s: &Str = match owner.as_ref() {
+        //&Object::Str(ref s) => s,
+        //_ => panic!("Invalid owner {:?}", owner)
+    //};
+    //for i in s.inner.iter() {
+        //let c = *i as char;
+        //if c <= 'z' && c >= 'a' {
+            //v.push(i - 32);
+        //} else {
+            //v.push(i);
+        //}
+    //}
+    //Some(Str::from_vec(v))
+//}
 
 #[derive(Clone)]
 pub struct Str {
     inner: Vec<u8>,
+}
+
+impl ObjectTrait for Str {
+    fn as_any(&self) -> &dyn std::any::Any {self}
+
+    fn klass(&self) -> Klass {
+        Klass::StringKlass
+    }
 }
 
 impl PartialEq for Str {
@@ -100,16 +106,16 @@ impl Str {
         }
     }
 
-    pub fn new() -> Rc<Object> {
-        Rc::new(Object::Str(Self {inner: Vec::new()}))
+    pub fn new() -> Object {
+        Rc::new(Self::raw())
     }
 
-    pub fn from(s: &str) -> Rc<Object> {
-        Rc::new(Object::Str(Self::raw_from(s)))
+    pub fn from(s: &str) -> Object {
+        Rc::new(Self::raw_from(s))
     }
 
-    pub fn from_vec(v: Vec<u8>) -> Rc<Object> {
-        Rc::new(Object::Str(Self {inner: v}))
+    pub fn from_vec(v: Vec<u8>) -> Object {
+        Rc::new(Self {inner: v})
     }
 
     pub fn push(&mut self, c: char) {

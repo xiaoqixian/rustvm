@@ -1,4 +1,5 @@
 pub mod binary_file_parser;
+pub mod code_object;
 
 pub mod byte_code {
     pub const POP_TOP:u8 = 1;
@@ -12,6 +13,11 @@ pub mod byte_code {
     pub const BINARY_DIVIDE:u8 = 21;
     pub const BINARY_ADD:u8 = 23;
     pub const BINARY_SUBTRACT:u8 = 24;
+
+    pub const SLICE0: u8 = 30;
+    pub const SLICE1: u8 = 31;
+    pub const SLICE2: u8 = 32;
+    pub const SLICE3: u8 = 33;
 
     pub const INPLACE_ADD:u8 = 55;
     pub const STORE_MAP:u8 = 54;
@@ -109,6 +115,11 @@ pub enum Ops {
     BinaryAdd,
     BinarySubtract,
 
+    Slice0,
+    Slice1,
+    Slice2,
+    Slice3,
+
     InplaceAdd,
     StoreMap,
     InplaceSubstract,
@@ -192,6 +203,11 @@ pub fn get_op(index: u8) -> Option<Ops> {
         21 => Some(Ops::BinaryDivide),
         23 => Some(Ops::BinaryAdd),
         24 => Some(Ops::BinarySubtract),
+
+        30 => Some(Ops::Slice0),
+        31 => Some(Ops::Slice1),
+        32 => Some(Ops::Slice2),
+        33 => Some(Ops::Slice3),
 
         55 => Some(Ops::InplaceAdd),
         54 => Some(Ops::StoreMap),
