@@ -89,6 +89,10 @@ impl List {
 impl ObjectTrait for List {
     fn as_any(&self) -> &dyn std::any::Any {self}
 
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn klass(&self) -> super::klass::Klass {
         super::klass::Klass::ListKlass
     }

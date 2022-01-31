@@ -29,6 +29,35 @@ macro_rules! cast {
     };
 }
 
+#[macro_export]
+macro_rules! cast_mut {
+    ($expr: expr, $type: ty) => {
+        //expr is expected to have only one strong count.
+        match Rc::get_mut($expr) {
+            None => panic!("call get_mut on {:?} with {} strong count", $expr, Rc::strong_count($expr)),
+            Some(o) => {
+                match o.as_any_mut().downcast_mut::<$type>() {
+                    None => panic!("Invalid {} {:?}", stringify!($expr), $expr),
+                    Some(v) => v
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! cast_match {
+    ($expr: expr) => {
+        match $expr.klass() {
+            Klass::IntegerKlass => cast!($expr, crate::objects::integer::Integer) as *const _ as usize,
+            Klass::StringKlass => cast!($expr, crate::objects::string::Str) as *const _ as usize,
+            Klass::ListKlass => cast!($expr, crate::objects::list::List) as *const _ as usize,
+            Klass::DictKlass => cast!($expr, crate::objects::map::Dict) as *const _ as usize,
+            Klass::CodeKlass => cast!($expr, crate::code::code_object::CodeObject) as *const _ as usize,
+            v => panic!("Invalid klass {:?}", v)
+        }
+    }
+}
 /**
  * define some builtin constant values 
  * like None, True, False
@@ -53,6 +82,10 @@ impl BuiltinValue {
 
 impl object::Object for BuiltinValue {
     fn as_any(&self) -> &dyn std::any::Any {self}
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 
     fn print(&self) {
         print!("{}", self);

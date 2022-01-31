@@ -160,6 +160,7 @@ impl Frame {
 
     #[inline]
     pub fn store_name(&self, index: usize, item: Object) {
+        crate::debug!("store name {:?} for item {:?}", self.get_name(index), item);
         self.locals.borrow_mut().insert(
             self.get_name(index).as_any().downcast_ref::<Str>().unwrap().clone(),
             item

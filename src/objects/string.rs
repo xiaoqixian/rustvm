@@ -45,6 +45,10 @@ pub struct Str {
 impl ObjectTrait for Str {
     fn as_any(&self) -> &dyn std::any::Any {self}
 
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn klass(&self) -> Klass {
         Klass::StringKlass
     }
@@ -165,6 +169,6 @@ impl std::fmt::Debug for Str {
 
 impl std::fmt::Display for Str {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.into().unwrap())
+        write!(f, "'{}'", self.into().unwrap())
     }
 }

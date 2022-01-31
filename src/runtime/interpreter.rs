@@ -10,11 +10,11 @@
 use std::rc::Rc;
 use std::collections::{VecDeque, BTreeMap};
 
-use crate::objects::{Object, string::Str, integer::Integer, list::List};
+use crate::objects::{Object, string::Str, integer::Integer, list::List, map::Dict};
 use super::frame::Frame;
 use crate::errors::Errors;
 use crate::code::{byte_code, get_op, code_object::CodeObject};
-use crate::{info, debug, cast};
+use crate::{info, debug, cast, cast_mut};
 
 /*macro_rules! pop {*/
     /*($self:ident$(, $field:ident)*) => {*/
@@ -218,6 +218,29 @@ impl Interpreter {
                     let lst = self.frame.stack.borrow_mut().pop().unwrap();
 
                     self.frame.stack.borrow_mut().push(cast!(lst, List).range_index(Some(start), Some(end)));
+                },
+
+                byte_code::BUILD_MAP => {
+                    self.frame.stack.borrow_mut().push(Dict::new());
+                },
+
+                byte_code::STORE_MAP => {
+                    let v = self.frame.stack.borrow_mut().pop().unwrap();
+                    let k = self.frame.stack.borrow_mut().pop().unwrap();
+                    let mut m = self.frame.stack.borrow_mut().pop().unwrap();
+                    //let map = cast_mut!(&mut m, Dict);
+                    let map = match Rc::get_mut(&mut m) {
+                        None => panic!("call get_mut on {:?} with {} strong count", m, Rc::strong_count(&m)),
+                        Some(o) => {
+                            match o.as_any_mut().downcast_mut::<Dict>() {
+                                None => panic!("Invalid {:?}", m),
+                                Some(v) => v
+                            }
+                        }
+                    };
+
+                    map.put(k, v);
+                    self.frame.stack.borrow_mut().push(m);
                 }
 
                 /*byte_code::POP_JUMP_IF_TRUE => {*/

@@ -16,18 +16,17 @@
 
 a = {1: 'a', 2: 'b'}
 print a
-print a[1]
 
-class Own:
-    def __init__(self, a, b):
-        self.a = a
-        self.b = b
+# class Own:
+    # def __init__(self, a, b):
+        # self.a = a
+        # self.b = b
 
-o1 = Own(1, 2)
-o2 = Own(3, 4)
+# o1 = Own(1, 2)
+# o2 = Own(3, 4)
 
-a[o1] = o2
-print a[o1].b
+# a[o1] = o2
+# print a[o1].b
 
 # """
 # Slice0: 30
