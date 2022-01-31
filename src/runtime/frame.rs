@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::objects::{Object, string::Str, klass::Klass};
+use crate::objects::{Object, string::Str, klass::Klass, function::Function, BuiltinValue};
 use crate::code::code_object::CodeObject;
 use crate::cast;
 
@@ -101,41 +101,39 @@ impl Frame {
                     sender
                 }
             },
-/*            &Object::Function(ref func) => {*/
-                /*Self {*/
-                    /*pc: RefCell::new(0),*/
-                    /*stack: RefCell::new(Vec::new()),*/
-                    /*loop_stack: RefCell::new(Vec::new()),*/
-                    /*locals: RefCell::new(BTreeMap::new()),*/
-                    /*globals: BTreeMap::new(),*/
-                    /*fast_locals: {*/
-                        /*let mut arg_num = match func.func_codes.as_ref() {*/
-                            /*&Object::CodeObject(ref c) => c.argcount,*/
-                            /*_ => panic!("Invalid arg {:?}", codes)*/
-                        /*};*/
-                        /*let mut fast_locals = vec![Rc::new(Object::r#None); arg_num];*/
+            Klass::FunctionKlass => {
+                let func = cast!(codes, Function);
+                Self {
+                    pc: RefCell::new(0),
+                    stack: RefCell::new(Vec::new()),
+                    loop_stack: RefCell::new(Vec::new()),
+                    locals: RefCell::new(BTreeMap::new()),
+                    globals: BTreeMap::new(),
+                    fast_locals: {
+                        let mut arg_num = cast!(func.func_codes, CodeObject).argcount;
+                        let mut fast_locals = vec![BuiltinValue::new("None"); arg_num];
                         
-                        /*if let &Some(ref defaults) = &func.defaults {*/
-                            /*let mut dft_num = defaults.len();*/
-                            /*assert!(arg_num >= dft_num);*/
+                        if let &Some(ref defaults) = &func.defaults {
+                            let mut dft_num = defaults.len();
+                            assert!(arg_num >= dft_num);
 
-                            /*while dft_num > 0 {*/
-                                /*dft_num -= 1;*/
-                                /*arg_num -= 1;*/
-                                /* *&mut fast_locals[arg_num] = (*&defaults[dft_num]).clone();*/
-                            /*}*/
-                        /*}*/
+                            while dft_num > 0 {
+                                dft_num -= 1;
+                                arg_num -= 1;
+                                 *&mut fast_locals[arg_num] = (*&defaults[dft_num]).clone();
+                            }
+                        }
                         
-                        /*if let Some(args_v) = args {*/
-                            /*fast_locals.splice(..args_v.len(), args_v);*/
-                        /*}*/
+                        if let Some(args_v) = args {
+                            fast_locals.splice(..args_v.len(), args_v);
+                        }
 
-                        /*Some(RefCell::new(fast_locals))*/
-                    /*},*/
-                    /*codes: func.func_codes.clone(),*/
-                    /*sender*/
-                /*}*/
-            /*},*/
+                        Some(RefCell::new(fast_locals))
+                    },
+                    codes: func.func_codes.clone(),
+                    sender
+                }
+            },
             _ => panic!("Invalid frame codes {:?}", codes)
         })
     }

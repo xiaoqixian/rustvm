@@ -11,8 +11,7 @@ pub mod object;
 pub mod klass;
 pub mod string;
 pub mod integer;
-//pub mod frame;
-//pub mod function;
+pub mod function;
 pub mod list;
 pub mod map;
 

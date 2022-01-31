@@ -10,7 +10,7 @@
 use std::rc::Rc;
 use std::collections::{VecDeque, BTreeMap};
 
-use crate::objects::{Object, string::Str, integer::Integer, list::List, map::Dict};
+use crate::objects::{Object, string::Str, integer::Integer, list::List, map::Dict, function::{Function}, klass::Klass};
 use super::frame::Frame;
 use crate::errors::Errors;
 use crate::code::{byte_code, get_op, code_object::CodeObject};
@@ -97,14 +97,13 @@ impl Interpreter {
                     self.frame.stack.borrow_mut().push(self.frame.get_local(self.frame.get_name(op_arg)));
                 },
 
-                //byte_code::LOAD_FAST => {
-                    //self.frame.stack.borrow_mut().push((*&self.frame.fast_locals.as_ref().unwrap().borrow()[op_arg]).clone());
-                //},
+                byte_code::LOAD_FAST => {
+                    self.frame.stack.borrow_mut().push(self.frame.fast_locals.as_ref().unwrap().borrow()[op_arg].clone());
+                },
 
-                //byte_code::STORE_FAST => {
-                    //let v = self.frame.stack.borrow_mut().pop().unwrap();
-                    //*&mut self.frame.fast_locals.as_ref().unwrap().borrow_mut()[op_arg] = v;
-                //}
+                byte_code::STORE_FAST => {
+                    *&mut self.frame.fast_locals.as_ref().unwrap().borrow_mut()[op_arg] = self.frame.stack.borrow_mut().pop().unwrap();
+                }
 
                 byte_code::STORE_NAME => {
                     self.frame.store_name(op_arg, self.frame.stack.borrow_mut().pop().unwrap());
@@ -293,60 +292,60 @@ impl Interpreter {
                     /*self.frame.set_pc(block.target);*/
                 /*},*/
 
-                /*byte_code::MAKE_FUNCTION => {*/
-                    /*let code_wrap = self.frame.stack.borrow_mut().pop().unwrap();*/
-                    /*let defaults = if op_arg > 0 {*/
-                        /*let mut defaults = VecDeque::<Rc<Object>>::with_capacity(op_arg);*/
-                        /*while op_arg > 0 {*/
-                            /*defaults.push_front(self.frame.stack.borrow_mut().pop().unwrap());*/
-                            /*op_arg -= 1;*/
-                        /*}*/
-                        /*Some(Vec::from(defaults))*/
-                    /*} else {None};*/
+                byte_code::MAKE_FUNCTION => {
+                    let code_wrap = self.frame.stack.borrow_mut().pop().unwrap();
+                    let defaults = if op_arg > 0 {
+                        let mut defaults = VecDeque::<Object>::with_capacity(op_arg);
+                        while op_arg > 0 {
+                            defaults.push_front(self.frame.stack.borrow_mut().pop().unwrap());
+                            op_arg -= 1;
+                        }
+                        Some(Vec::from(defaults))
+                    } else {None};
 
-                    /*self.frame.stack.borrow_mut().push(Rc::new(Object::Function(Function::new(code_wrap, defaults))));*/
-                /*}*/
+                    self.frame.stack.borrow_mut().push(Function::new(code_wrap, defaults));
+                }
 
-                /*byte_code::CALL_FUNCTION => {*/
-                    /*//receive arguments for the function is called.*/
-                    /*let args = if op_arg > 0 {*/
-                        /*let mut args = VecDeque::<Rc<Object>>::with_capacity(op_arg);*/
-                        /*while op_arg > 0 {*/
-                            /*args.push_front(self.frame.stack.borrow_mut().pop().unwrap());*/
-                            /*op_arg -= 1;*/
-                        /*}*/
-                        /*Some(Vec::from(args))*/
-                    /*} else {None};*/
+                byte_code::CALL_FUNCTION => {
+                    //receive arguments for the function is called.
+                    let args = if op_arg > 0 {
+                        let mut args = VecDeque::<Object>::with_capacity(op_arg);
+                        while op_arg > 0 {
+                            args.push_front(self.frame.stack.borrow_mut().pop().unwrap());
+                            op_arg -= 1;
+                        }
+                        Some(Vec::from(args))
+                    } else {None};
 
-                    /*let func_wrap = self.frame.stack.borrow_mut().pop().unwrap();*/
-                    /*match func_wrap.as_ref() {*/
-                        /*&Object::Function(_) => {*/
-                            /*self.build_frame(func_wrap, args);*/
-                        /*},*/
-                        /*//native function doesn't has a RETURN_VALUE op, so don't build a frame.*/
-                        /*&Object::NativeFunction(ref nf) => {*/
-                            /*self.frame.stack.borrow_mut().push(match nf.call(match args {*/
-                                /*None => Vec::<Rc<Object>>::new(),*/
-                                /*Some(v) => v*/
-                            /*}) {*/
-                                /*None => Rc::new(Object::r#None),*/
-                                /*Some(v) => v*/
-                            /*});*/
-                        /*},*/
+                    let func_wrap = self.frame.stack.borrow_mut().pop().unwrap();
+                    match func_wrap.klass() {
+                        Klass::FunctionKlass => {
+                            self.build_frame(func_wrap, args);
+                        },
+                        //native function doesn't has a RETURN_VALUE op, so don't build a frame.
+                        //&Object::NativeFunction(ref nf) => {
+                            //self.frame.stack.borrow_mut().push(match nf.call(match args {
+                                //None => Vec::<Object>::new(),
+                                //Some(v) => v
+                            //}) {
+                                //None => Rc::new(Object::r#None),
+                                //Some(v) => v
+                            //});
+                        //},
 
-                        /*//methods*/
-                        /*&Object::Method(ref m) => {*/
-                            /*self.frame.stack.borrow_mut().push(match m.call(match args {*/
-                                /*None => Vec::<Rc<Object>>::new(),*/
-                                /*Some(v) => v*/
-                            /*}) {*/
-                                /*None => Rc::new(Object::r#None),*/
-                                /*Some(v) => v*/
-                            /*});*/
-                        /*}*/
-                        /*v => panic!("Invalid function {:?}", v)*/
-                    /*}*/
-                /*}*/
+                        ////methods
+                        //&Object::Method(ref m) => {
+                            //self.frame.stack.borrow_mut().push(match m.call(match args {
+                                //None => Vec::<Object>::new(),
+                                //Some(v) => v
+                            //}) {
+                                //None => Rc::new(Object::r#None),
+                                //Some(v) => v
+                            //});
+                        //}
+                        v => panic!("Invalid function {:?}", v)
+                    }
+                }
 
                 byte_code::RETURN_VALUE => {
                     self.frame.stack.borrow_mut().pop();

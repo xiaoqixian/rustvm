@@ -9,23 +9,25 @@
 
 use std::rc::Rc;
 
-use super::{object::Object, string::Str};
+use super::{Object, string::Str, klass::Klass, object::Object as ObjectTrait};
+use crate::cast;
 
-pub type NativeFuncPointer = dyn Fn(Vec<Rc<Object>>) -> Option<Rc<Object>>;
-pub type MethodFuncPointer = dyn Fn(Rc<Object>, Vec<Rc<Object>>) -> Option<Rc<Object>>;
+pub type NativeFuncPointer = dyn Fn(Vec<Object>) -> Option<Object>;
+pub type MethodFuncPointer = dyn Fn(Object, Vec<Object>) -> Option<Object>;
 
 #[derive(Clone)]
 pub struct Function {
-    pub func_codes: Rc<Object>,
-    pub func_name: Rc<Object>,
+    pub func_codes: Object,
+    pub func_name: Object,
     pub flags: u32,
-    pub defaults: Option<Vec<Rc<Object>>>,
+    pub defaults: Option<Vec<Object>>,
 }
 
 impl Function {
-    pub fn new(codes_wrap: Rc<Object>, defaults: Option<Vec<Rc<Object>>>) -> Self {
-        match codes_wrap.as_ref() {
-            &Object::CodeObject(ref codes) => {
+    pub fn new(codes_wrap: Object, defaults: Option<Vec<Object>>) -> Rc<Self> {
+        Rc::new(match codes_wrap.klass() {
+            Klass::CodeKlass => {
+                let codes = cast!(codes_wrap, crate::code::code_object::CodeObject);
                 Self {
                     func_name: codes.co_name.clone(),
                     func_codes: codes_wrap,
@@ -33,51 +35,75 @@ impl Function {
                     defaults
                 }
             },
-            _ => panic!("Invalid arg {:?}", codes_wrap)
-        }
+            _ => panic!("Invalid codes_wrap {:?}", codes_wrap)
+        })
     }
 }
 
-#[derive(Clone)]
-pub struct NativeFunction {
-    pub nfp: &'static NativeFuncPointer,
-    pub func_name: Str
-}
+impl ObjectTrait for Function {
+    fn as_any(&self) -> &dyn std::any::Any {self}
 
-impl NativeFunction {
-    pub fn new(nfp: &'static NativeFuncPointer, func_name: &Str) -> Self {
-        Self {
-            nfp,
-            func_name: func_name.clone()
-        }
-    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {self}
 
-    pub fn call(&self, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
-        let nfp = self.nfp;
-        nfp(args)
+    fn klass(&self) -> Klass {
+        Klass::FunctionKlass
     }
 }
 
-#[derive(Clone)]
-pub struct Method {
-    pub owner: Rc<Object>,
-    pub mfp: &'static MethodFuncPointer
-}
-
-impl Method {
-    pub fn from(owner: Rc<Object>, mfp: &'static MethodFuncPointer) -> Self {
-        Self {
-            owner,
-            mfp
-        }
-    }
-
-    pub fn call(&self, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
-        let mfp = self.mfp;
-        mfp(self.owner.clone(), args)
+impl std::fmt::Display for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.func_name)
     }
 }
 
-pub fn len(args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
-    Some(Rc::new(Object::Int(args[0].len())))
+impl std::fmt::Debug for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<func {}>", self.func_name)
+    }
 }
+
+
+
+/*#[derive(Clone)]*/
+/*pub struct NativeFunction {*/
+    /*pub nfp: &'static NativeFuncPointer,*/
+    /*pub func_name: Str*/
+/*}*/
+
+/*impl NativeFunction {*/
+    /*pub fn new(nfp: &'static NativeFuncPointer, func_name: &Str) -> Self {*/
+        /*Self {*/
+            /*nfp,*/
+            /*func_name: func_name.clone()*/
+        /*}*/
+    /*}*/
+
+    /*pub fn call(&self, args: Vec<Object>) -> Option<Object> {*/
+        /*let nfp = self.nfp;*/
+        /*nfp(args)*/
+    /*}*/
+/*}*/
+
+/*#[derive(Clone)]*/
+/*pub struct Method {*/
+    /*pub owner: Object,*/
+    /*pub mfp: &'static MethodFuncPointer*/
+/*}*/
+
+/*impl Method {*/
+    /*pub fn from(owner: Object, mfp: &'static MethodFuncPointer) -> Self {*/
+        /*Self {*/
+            /*owner,*/
+            /*mfp*/
+        /*}*/
+    /*}*/
+
+    /*pub fn call(&self, args: Vec<Object>) -> Option<Object> {*/
+        /*let mfp = self.mfp;*/
+        /*mfp(self.owner.clone(), args)*/
+    /*}*/
+/*}*/
+
+/*pub fn len(args: Vec<Object>) -> Option<Object> {*/
+    /*Some(Rc::new(Object::Int(args[0].len())))*/
+/*}*/

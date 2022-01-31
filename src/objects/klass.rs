@@ -16,7 +16,8 @@ pub enum Klass {
     CodeKlass,
     BuiltinKlass,
     ListKlass,
-    DictKlass
+    DictKlass,
+    FunctionKlass
 }
 
 //impl PartialEq for Klass {

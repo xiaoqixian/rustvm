@@ -17,6 +17,12 @@
 a = {1: 'a', 2: 'b'}
 print a
 
+def func(a, b = 1):
+    print a,b
+
+func(1)
+func(1, 2)
+
 # class Own:
     # def __init__(self, a, b):
         # self.a = a
