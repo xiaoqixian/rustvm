@@ -14,21 +14,20 @@
 # print a[1:4]
 # print a[b]
 
-a = {1: 'a', 2: 'b'}
-print a
-
-def func(a, b = 1):
-    print a,b
-
-func(1)
-func(1, 2)
+a = "hello"
+print a.upper()
 
 # class Own:
     # def __init__(self, a, b):
         # self.a = a
         # self.b = b
 
+    # def print_self(self):
+        # print self.a, self.b
+
 # o1 = Own(1, 2)
+# print Own
+# print list
 # o2 = Own(3, 4)
 
 # a[o1] = o2
