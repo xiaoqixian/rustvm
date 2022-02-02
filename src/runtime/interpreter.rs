@@ -10,7 +10,7 @@
 use std::rc::Rc;
 use std::collections::{VecDeque, BTreeMap};
 
-use crate::objects::{Object, string::Str, integer::Integer, list::List, map::Dict, function::{Function}, klass::Klass};
+use crate::objects::{Object, string::Str, integer::Integer, list::List, map::Dict, function::{Function, Method}, klass::Klass};
 use super::frame::Frame;
 use crate::errors::Errors;
 use crate::code::{byte_code, get_op, code_object::CodeObject};
@@ -108,6 +108,12 @@ impl Interpreter {
                 byte_code::STORE_NAME => {
                     self.frame.store_name(op_arg, self.frame.stack.borrow_mut().pop().unwrap());
                 },
+
+                byte_code::LOAD_ATTR => {
+                    let owner = self.frame.stack.borrow_mut().pop().unwrap();
+
+                    self.frame.stack.borrow_mut().push(owner.get_attr(owner.clone(), self.frame.get_name(op_arg)));
+                }
 
                 byte_code::PRINT_ITEM => {
                     self.frame.stack.borrow_mut().pop().unwrap().print();
@@ -303,7 +309,7 @@ impl Interpreter {
                         Some(Vec::from(defaults))
                     } else {None};
 
-                    self.frame.stack.borrow_mut().push(Function::new(code_wrap, defaults));
+                    self.frame.stack.borrow_mut().push(Function::from_code(code_wrap, defaults));
                 }
 
                 byte_code::CALL_FUNCTION => {
@@ -318,34 +324,48 @@ impl Interpreter {
                     } else {None};
 
                     let func_wrap = self.frame.stack.borrow_mut().pop().unwrap();
-                    match func_wrap.klass() {
-                        Klass::FunctionKlass => {
-                            self.build_frame(func_wrap, args);
-                        },
-                        //native function doesn't has a RETURN_VALUE op, so don't build a frame.
-                        //&Object::NativeFunction(ref nf) => {
-                            //self.frame.stack.borrow_mut().push(match nf.call(match args {
-                                //None => Vec::<Object>::new(),
-                                //Some(v) => v
-                            //}) {
-                                //None => Rc::new(Object::r#None),
-                                //Some(v) => v
-                            //});
-                        //},
+                    self.build_frame(func_wrap, args);
+/*                    match func_wrap.klass() {*/
+                        /*Klass::FunctionKlass => {*/
+                            /*self.build_frame(func_wrap, args);*/
+                        /*},*/
 
-                        ////methods
-                        //&Object::Method(ref m) => {
-                            //self.frame.stack.borrow_mut().push(match m.call(match args {
-                                //None => Vec::<Object>::new(),
-                                //Some(v) => v
-                            //}) {
-                                //None => Rc::new(Object::r#None),
-                                //Some(v) => v
-                            //});
-                        //}
-                        v => panic!("Invalid function {:?}", v)
-                    }
-                }
+                        /*Klass::MethodKlass => {*/
+                            /*let method = cast!(func_wrap, Method);*/
+                            /*let m_args = match args {*/
+                                /*None => Some(vec![method.owner.clone(); 1]),*/
+                                /*Some(v) => {*/
+                                    /*let mut vd = VecDeque::from(v);*/
+                                    /*vd.push_front(method.owner.clone());*/
+                                    /*Some(Vec::from(vd))*/
+                                /*}*/
+                            /*};*/
+                            /*self.build_frame(method.func.clone(), m_args);*/
+                        /*}*/
+                        /*//native function doesn't has a RETURN_VALUE op, so don't build a frame.*/
+                        /*//&Object::NativeFunction(ref nf) => {*/
+                            /*//self.frame.stack.borrow_mut().push(match nf.call(match args {*/
+                                /*//None => Vec::<Object>::new(),*/
+                                /*//Some(v) => v*/
+                            /*//}) {*/
+                                /*//None => Rc::new(Object::r#None),*/
+                                /*//Some(v) => v*/
+                            /*//});*/
+                        /*//},*/
+
+                        /*////methods*/
+                        /*//&Object::Method(ref m) => {*/
+                            /*//self.frame.stack.borrow_mut().push(match m.call(match args {*/
+                                /*//None => Vec::<Object>::new(),*/
+                                /*//Some(v) => v*/
+                            /*//}) {*/
+                                /*//None => Rc::new(Object::r#None),*/
+                                /*//Some(v) => v*/
+                            /*//});*/
+                        /*//}*/
+                        /*v => panic!("Invalid function {:?}", v)*/
+                    /*}*/
+                },
 
                 byte_code::RETURN_VALUE => {
                     self.frame.stack.borrow_mut().pop();
@@ -364,6 +384,35 @@ impl Interpreter {
 
     #[inline]
     fn build_frame(&mut self, callable: Object, args: Option<Vec<Object>>) {
-        self.frame = Frame::new(callable, args, Some(self.frame.clone()));
+        match callable.klass() {
+            Klass::FunctionKlass => {
+                self.frame = Frame::new(callable, args, Some(self.frame.clone()));
+            },
+            Klass::MethodKlass => {
+                let method = cast!(callable, Method);
+                let func = cast!(method.func, Function);
+
+                let m_args = match args {
+                    None => vec![method.owner.clone(); 1],
+                    Some(v) => {
+                        let mut vd = VecDeque::from(v);
+                        vd.push_front(method.owner.clone());
+                        Vec::from(vd)
+                    }
+                };
+                match func.nfp {
+                    Some(nfp) => {
+                        self.frame.stack.borrow_mut().push(match nfp(m_args) {
+                            None => crate::objects::BuiltinValue::new("None"),
+                            Some(v) => v
+                        });
+                    },
+                    None => {
+                        self.build_frame(method.func.clone(), Some(m_args));
+                    }
+                }
+            },
+            v => panic!("Invalid callable klass {:?}", v)
+        }
     }
 }

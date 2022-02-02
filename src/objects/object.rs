@@ -12,7 +12,8 @@ use std::fmt::{Debug, Display};
 use std::rc::Rc;
 
 use super::klass::Klass;
-use super::integer::Integer;
+use super::function::{Method, Function};
+use super::string::{self, Str};
 use crate::{cast, cast_match};
 
 pub trait Object: Debug + Display {
@@ -24,7 +25,21 @@ pub trait Object: Debug + Display {
         println!("{}", self);
     }
 
-    fn klass(&self) -> Klass;
+    fn klass(&self) -> Klass {
+        Klass::NewKlass
+    }
+
+    fn get_attr(&self, owner: Rc<dyn Object>, attr: Rc<dyn Object>) -> Rc<dyn Object> {
+        match owner.klass() {
+            Klass::StringKlass => {
+                match cast!(attr, super::string::Str).into().unwrap() {
+                    "upper" => Method::new(owner, Function::from_nfp(&string::upper, Str::raw_from("upper"))),
+                    _ => panic!("Invalid str attribute")
+                }
+            },
+            v => panic!("Invalid klass {:?}", v)
+        }
+    }
 
     /**
      * define two dynamic object instances by comparing their 

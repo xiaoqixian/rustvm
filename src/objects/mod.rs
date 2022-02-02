@@ -14,6 +14,7 @@ pub mod integer;
 pub mod function;
 pub mod list;
 pub mod map;
+pub mod r#type;
 
 use std::rc::Rc;
 pub type Object = Rc<dyn object::Object>;

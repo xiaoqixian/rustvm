@@ -8,34 +8,44 @@
  **********************************************/
 
 use std::rc::Rc;
+use std::any::Any;
 
 use super::{Object, string::Str, klass::Klass, object::Object as ObjectTrait};
 use crate::cast;
 
 pub type NativeFuncPointer = dyn Fn(Vec<Object>) -> Option<Object>;
-pub type MethodFuncPointer = dyn Fn(Object, Vec<Object>) -> Option<Object>;
+//pub type MethodFuncPointer = dyn Fn(Object, Vec<Object>) -> Option<Object>;
 
 #[derive(Clone)]
 pub struct Function {
-    pub func_codes: Object,
-    pub func_name: Object,
-    pub flags: u32,
+    pub func_codes: Option<Object>,
+    pub func_name: Str,
+    pub nfp: Option<&'static NativeFuncPointer>,
     pub defaults: Option<Vec<Object>>,
 }
 
 impl Function {
-    pub fn new(codes_wrap: Object, defaults: Option<Vec<Object>>) -> Rc<Self> {
+    pub fn from_code(codes_wrap: Object, defaults: Option<Vec<Object>>) -> Rc<Self> {
         Rc::new(match codes_wrap.klass() {
             Klass::CodeKlass => {
                 let codes = cast!(codes_wrap, crate::code::code_object::CodeObject);
                 Self {
-                    func_name: codes.co_name.clone(),
-                    func_codes: codes_wrap,
-                    flags: 0,
+                    func_name: cast!(codes.co_name, Str).clone(),
+                    func_codes: Some(codes_wrap),
+                    nfp: None,
                     defaults
                 }
             },
             _ => panic!("Invalid codes_wrap {:?}", codes_wrap)
+        })
+    }
+
+    pub fn from_nfp(nfp: &'static NativeFuncPointer, name: Str) -> Rc<Self> {
+        Rc::new(Self {
+            func_name: name,
+            func_codes: None,
+            nfp: Some(nfp),
+            defaults: None
         })
     }
 }
@@ -84,25 +94,44 @@ impl std::fmt::Debug for Function {
     /*}*/
 /*}*/
 
-/*#[derive(Clone)]*/
-/*pub struct Method {*/
-    /*pub owner: Object,*/
-    /*pub mfp: &'static MethodFuncPointer*/
-/*}*/
+#[derive(Clone)]
+pub struct Method {
+    pub owner: Object,
+    pub func: Object
+}
 
-/*impl Method {*/
-    /*pub fn from(owner: Object, mfp: &'static MethodFuncPointer) -> Self {*/
-        /*Self {*/
-            /*owner,*/
-            /*mfp*/
-        /*}*/
-    /*}*/
+impl Method {
+    pub fn new(owner: Object, func: Object) -> Rc<Self> {
+        Rc::new(Self {
+            owner,
+            func
+        })
+    }
+}
 
-    /*pub fn call(&self, args: Vec<Object>) -> Option<Object> {*/
-        /*let mfp = self.mfp;*/
-        /*mfp(self.owner.clone(), args)*/
-    /*}*/
-/*}*/
+impl std::fmt::Debug for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<method {}>", &cast!(self.func, Function).func_name)
+    }
+}
+
+impl std::fmt::Display for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<method {}>", &cast!(self.func, Function).func_name)
+    }
+}
+
+impl ObjectTrait for Method {
+    fn as_any(&self) -> &dyn Any {self}
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn klass(&self) -> Klass {
+        Klass::MethodKlass
+    }
+}
 
 /*pub fn len(args: Vec<Object>) -> Option<Object> {*/
     /*Some(Rc::new(Object::Int(args[0].len())))*/

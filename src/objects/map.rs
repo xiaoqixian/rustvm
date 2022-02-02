@@ -63,9 +63,13 @@ impl fmt::Display for Dict {
 
 impl Dict {
     pub fn new() -> Object {
-        std::rc::Rc::new(Self {
+        std::rc::Rc::new(Self::raw_new())
+    }
+
+    pub fn raw_new() -> Self {
+        Self {
             entries: Vec::new()
-        })
+        }
     }
 
     fn get_entry<'a>(&'a self, k: &Object) -> Option<&'a MapEntry> {

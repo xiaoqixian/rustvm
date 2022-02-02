@@ -7,7 +7,9 @@
   > Copyright@ https://github.com/xiaoqixian
 **********************************************/
 
+use std::rc::Rc;
 //use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
+use super::{map::Dict, string::{Str, self}, function::{Function, Method}};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Klass {
@@ -17,11 +19,31 @@ pub enum Klass {
     BuiltinKlass,
     ListKlass,
     DictKlass,
-    FunctionKlass
+    FunctionKlass,
+    BuiltinMethodKlass,
+    MethodKlass,
+    TypeKlass,
+    NewKlass
 }
 
-//impl PartialEq for Klass {
-    //fn eq(&self, other: &Self) -> bool {
-        //match self 
+#[derive(Clone)]
+pub struct KlassContainer {
+    attr_dict: Dict,
+    name: Str
+}
+
+impl Klass {
+    //pub fn initialize(k: Self) -> Rc<KlassContainer> {
+        //match k {
+            //Self::StringKlass => {
+                //let mut attr_dict = Dict::raw_new();
+                //attr_dict.put(Str::from("upper"), Method::from(&string::upper, None, Str::from("upper")));
+                //Rc::new(KlassContainer {
+                    //attr_dict,
+                    //name: Str::raw_from("str")
+                //})
+            //},
+            //_ => panic!("Invalid klass {:?}", k)
+        //}
     //}
-//}
+}

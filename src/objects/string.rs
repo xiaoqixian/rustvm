@@ -16,27 +16,6 @@ use crate::errors::Errors;
 use crate::objects::object::Object as ObjectTrait;
 use super::{Object, klass::Klass};
 
-/*
- * define some python str methods
- * store them in a static map
- */
-//pub fn upper(owner: Rc<Object>, args: Vec<Rc<Object>>) -> Option<Rc<Object>> {
-    //let mut v = Vec::<u8>::new();
-    //let s: &Str = match owner.as_ref() {
-        //&Object::Str(ref s) => s,
-        //_ => panic!("Invalid owner {:?}", owner)
-    //};
-    //for i in s.inner.iter() {
-        //let c = *i as char;
-        //if c <= 'z' && c >= 'a' {
-            //v.push(i - 32);
-        //} else {
-            //v.push(i);
-        //}
-    //}
-    //Some(Str::from_vec(v))
-//}
-
 #[derive(Clone)]
 pub struct Str {
     inner: Vec<u8>,
@@ -172,3 +151,23 @@ impl std::fmt::Display for Str {
         write!(f, "'{}'", self.into().unwrap())
     }
 }
+
+/*
+ * define some python str methods
+ * store them in a static map
+ */
+pub fn upper(args: Vec<Object>) -> Option<Object> {
+    let mut v = Vec::<u8>::new();
+    let s = crate::cast!(&args[0], Str);
+    for i in s.inner.iter() {
+        let c = *i as char;
+        if c <= 'z' && c >= 'a' {
+            v.push(i - 32);
+        } else {
+            v.push(*i);
+        }
+    }
+    Some(Str::from_vec(v))
+}
+
+

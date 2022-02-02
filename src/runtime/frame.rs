@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::objects::{Object, string::Str, klass::Klass, function::Function, BuiltinValue};
+use crate::objects::{Object, string::Str, klass::Klass, function::Function, map::Dict, BuiltinValue};
 use crate::code::code_object::CodeObject;
 use crate::cast;
 
@@ -37,8 +37,8 @@ pub struct Frame {
     pub pc: RefCell<usize>,
     pub stack: RefCell<Vec<Object>>,
     pub loop_stack: RefCell<Vec<Block>>,
-    pub locals: RefCell<BTreeMap<Str, Object>>,
-    pub globals: BTreeMap<Str, Object>,
+    pub locals: RefCell<Object>,
+    pub globals: Object,
     pub fast_locals: Option<RefCell<Vec<Object>>>,
     pub codes: Object,
     pub sender: Option<Rc<Self>>
@@ -91,8 +91,8 @@ impl Frame {
                     pc: RefCell::new(0),
                     stack: RefCell::new(Vec::new()),
                     loop_stack: RefCell::new(Vec::new()),
-                    locals: RefCell::new(BTreeMap::new()),
-                    globals: BTreeMap::new(),
+                    locals: RefCell::new(Dict::new()),
+                    globals: Dict::new(),
                     fast_locals: match args {
                         None => None,
                         Some(v) => Some(RefCell::new(v))
@@ -107,10 +107,10 @@ impl Frame {
                     pc: RefCell::new(0),
                     stack: RefCell::new(Vec::new()),
                     loop_stack: RefCell::new(Vec::new()),
-                    locals: RefCell::new(BTreeMap::new()),
-                    globals: BTreeMap::new(),
+                    locals: RefCell::new(Dict::new()),
+                    globals: Dict::new(),
                     fast_locals: {
-                        let mut arg_num = cast!(func.func_codes, CodeObject).argcount;
+                        let mut arg_num = cast!(func.func_codes.as_ref().unwrap(), CodeObject).argcount;
                         let mut fast_locals = vec![BuiltinValue::new("None"); arg_num];
                         
                         if let &Some(ref defaults) = &func.defaults {
@@ -130,7 +130,7 @@ impl Frame {
 
                         Some(RefCell::new(fast_locals))
                     },
-                    codes: func.func_codes.clone(),
+                    codes: func.func_codes.as_ref().unwrap().clone(),
                     sender
                 }
             },
@@ -150,7 +150,7 @@ impl Frame {
 
     #[inline]
     pub fn get_local(&self, name: Object) -> Object {
-        match self.locals.borrow().get(name.as_any().downcast_ref::<Str>().unwrap()) {
+        match self.locals.borrow().as_any().downcast_ref::<Dict>().unwrap().get(&name) {
             None => panic!("{:?} not found in locals", name),
             Some(v) => v.clone()
         }
@@ -159,8 +159,8 @@ impl Frame {
     #[inline]
     pub fn store_name(&self, index: usize, item: Object) {
         crate::debug!("store name {:?} for item {:?}", self.get_name(index), item);
-        self.locals.borrow_mut().insert(
-            self.get_name(index).as_any().downcast_ref::<Str>().unwrap().clone(),
+        Rc::get_mut(&mut *self.locals.borrow_mut()).unwrap().as_any_mut().downcast_mut::<Dict>().unwrap().put(
+            self.get_name(index).clone(),
             item
         );
     }
