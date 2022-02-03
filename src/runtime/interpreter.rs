@@ -10,29 +10,18 @@
 use std::rc::Rc;
 use std::collections::{VecDeque, BTreeMap};
 
-use crate::objects::{Object, string::Str, integer::Integer, list::List, map::Dict, function::{Function, Method}, klass::Klass};
+use crate::objects::{Object, string::Str, integer::Integer, list::List, map::Dict, function::{Function, Method}, klass::Klass, r#type::TypeObject};
 use super::frame::Frame;
 use crate::errors::Errors;
 use crate::code::{byte_code, get_op, code_object::CodeObject};
 use crate::{info, debug, cast, cast_mut};
 
-/*macro_rules! pop {*/
-    /*($self:ident$(, $field:ident)*) => {*/
-        /*match $self$(.$field)*.pop() {*/
-            /*None => {panic!("empty stack pop");},*/
-            /*Some(v) => v*/
-        /*}*/
-    /*}*/
-/*}*/
-
-/*macro_rules! ptr_eq {*/
-    /*($p1:ident, $p2:ident) => {{*/
-        /*($p1 as *mut Integer as u64) == ($p2 as *mut Integer as u64)*/
-    /*}}*/
-/*}*/
+const OK: u8 = 0;
+const RETURN: u8 = 1;
 
 pub struct Interpreter {
     frame: Rc<Frame>,
+    ret_value: Option<Object>,
     //builtin_funcs: BTreeMap<Str, &'static NativeFuncPointer>
 }
 
@@ -57,6 +46,7 @@ impl Interpreter {
 
         Self {
             frame: Frame::new(codes, None, None),
+            ret_value: None,
             //builtin_funcs
         }
     }
@@ -64,6 +54,9 @@ impl Interpreter {
     pub fn run(&mut self) -> Result<(), Errors> {
         let mut op_code: u8 = 0;
         let mut op_arg: usize = usize::MAX;
+        let mut status: u8 = 0;
+
+        debug!("first frame globals: {:?}", self.frame.globals);
 
         //let mut pc: usize = 0;//program counter
         //let code_length = codes.bytecodes.len();
@@ -94,7 +87,12 @@ impl Interpreter {
                 }
                 
                 byte_code::LOAD_NAME => {
-                    self.frame.stack.borrow_mut().push(self.frame.get_local(self.frame.get_name(op_arg)));
+                    self.frame.stack.borrow_mut().push(match self.frame.get_local(self.frame.get_name(op_arg)) {
+                        Some(v) => v,
+                        None => {
+                            panic!("name {:?} not found", self.frame.get_name(op_arg))
+                        }
+                    });
                 },
 
                 byte_code::LOAD_FAST => {
@@ -112,7 +110,22 @@ impl Interpreter {
                 byte_code::LOAD_ATTR => {
                     let owner = self.frame.stack.borrow_mut().pop().unwrap();
 
-                    self.frame.stack.borrow_mut().push(owner.get_attr(owner.clone(), self.frame.get_name(op_arg)));
+                    self.frame.stack.borrow_mut().push(match owner.get_attr(owner.clone(), &self.frame.get_name(op_arg)) {
+                        None => panic!("Attr {:?} not found in {:?}", self.frame.get_name(op_arg), owner),
+                        Some(v) => v
+                    });
+                },
+
+                byte_code::STORE_ATTR => {
+                    let owner = self.frame.stack.borrow_mut().pop().unwrap();
+                    let item = self.frame.stack.borrow_mut().pop().unwrap();
+                    let name = self.frame.get_name(op_arg);
+                    
+                    owner.set_attr(owner.clone(), name, item);
+                },
+
+                byte_code::LOAD_LOCALS => {
+                    self.frame.stack.borrow_mut().push(self.frame.locals.borrow().clone());
                 }
 
                 byte_code::PRINT_ITEM => {
@@ -309,7 +322,7 @@ impl Interpreter {
                         Some(Vec::from(defaults))
                     } else {None};
 
-                    self.frame.stack.borrow_mut().push(Function::from_code(code_wrap, defaults));
+                    self.frame.stack.borrow_mut().push(Function::from_code(code_wrap, defaults, Some(self.frame.globals.clone())));
                 }
 
                 byte_code::CALL_FUNCTION => {
@@ -367,10 +380,24 @@ impl Interpreter {
                     /*}*/
                 },
 
+                byte_code::BUILD_CLASS => {
+                    let attrs = self.frame.stack.borrow_mut().pop().unwrap();
+                    let supers = self.frame.stack.borrow_mut().pop().unwrap();
+                    let name = self.frame.stack.borrow_mut().pop().unwrap();
+
+                    self.frame.stack.borrow_mut().push(TypeObject::new(&attrs, &name));
+                },
+
                 byte_code::RETURN_VALUE => {
-                    self.frame.stack.borrow_mut().pop();
-                    if let Some(f) = &self.frame.sender {
-                        self.frame = f.clone();
+                    let ret_value = self.frame.stack.borrow_mut().pop().unwrap();
+                    self.ret_value = Some(ret_value.clone());
+                    if self.frame.entry_frame {return Ok(())}
+                    match &self.frame.sender {
+                        Some(f) => {
+                            self.frame = f.clone();
+                            self.frame.stack.borrow_mut().push(ret_value);
+                        },
+                        None => return Ok(()),
                     }
                 },
 
@@ -412,6 +439,15 @@ impl Interpreter {
                     }
                 }
             },
+            Klass::TypeKlass => {
+                let tp = cast!(callable, TypeObject);
+                let ins = tp.allocate_instance();
+                if let Some(init) = ins.get_attr(ins.clone(), &Str::from("__init__")) {
+                    self.frame.stack.borrow_mut().push(ins);
+                    self.frame = Frame::new(cast!(init, Method).func.clone(), args, Some(self.frame.clone()));
+                    Rc::make_mut(&mut self.frame).entry_frame = true;
+                }
+            }
             v => panic!("Invalid callable klass {:?}", v)
         }
     }

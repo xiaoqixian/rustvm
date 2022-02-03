@@ -14,18 +14,16 @@
 # print a[1:4]
 # print a[b]
 
-a = "hello"
-print a.upper()
+class Own:
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
 
-# class Own:
-    # def __init__(self, a, b):
-        # self.a = a
-        # self.b = b
+    def print_self(self):
+        print self.a, self.b
 
-    # def print_self(self):
-        # print self.a, self.b
-
-# o1 = Own(1, 2)
+o1 = Own(1, 2)
+o1.print_self()
 # print Own
 # print list
 # o2 = Own(3, 4)

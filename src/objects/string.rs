@@ -31,6 +31,16 @@ impl ObjectTrait for Str {
     fn klass(&self) -> Klass {
         Klass::StringKlass
     }
+
+    fn equal(&self, other: &Rc<dyn ObjectTrait>) -> bool {
+        match other.klass() {
+            Klass::StringKlass => {
+                let other_str = crate::cast!(other, Self);
+                self == other_str
+            },
+            _ => panic!("Invalid arg {:?}", other)
+        }
+    }
 }
 
 impl PartialEq for Str {

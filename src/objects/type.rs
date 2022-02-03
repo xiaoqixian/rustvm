@@ -10,7 +10,7 @@
 use std::rc::Rc;
 use std::any::Any;
 
-use super::{Object, object::Object as ObjectTrait, klass::KlassContainer, string::Str};
+use super::{Object, object::Object as ObjectTrait, klass::KlassContainer, string::Str, object::NewObject};
 
 /**
  * A TypeObject instance represents a class.
@@ -19,8 +19,19 @@ use super::{Object, object::Object as ObjectTrait, klass::KlassContainer, string
  */
 #[derive(Clone)]
 pub struct TypeObject {
-    name: Str,
-    own_klass: Rc<KlassContainer>
+    kc: Rc<KlassContainer>
+}
+
+impl TypeObject {
+    pub fn new(attrs: &Object, name: &Object) -> Rc<Self> {
+        Rc::new(Self {
+            kc: KlassContainer::new(attrs, name)
+        })
+    }
+
+    pub fn allocate_instance(&self) -> Object {
+        NewObject::new(self.kc.clone())
+    }
 }
 
 impl ObjectTrait for TypeObject {
@@ -37,12 +48,12 @@ impl ObjectTrait for TypeObject {
 
 impl std::fmt::Display for TypeObject {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<type {}>", &self.name)
+        write!(f, "<type {}>", &self.kc.name)
     }
 }
 
 impl std::fmt::Debug for TypeObject {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<type {}>", &self.name)
+        write!(f, "<type {}>", &self.kc.name)
     }
 }

@@ -9,7 +9,7 @@
 
 use std::rc::Rc;
 //use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
-use super::{map::Dict, string::{Str, self}, function::{Function, Method}};
+use super::{map::Dict, string::{Str, self}, function::{Function, Method}, Object};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Klass {
@@ -28,8 +28,34 @@ pub enum Klass {
 
 #[derive(Clone)]
 pub struct KlassContainer {
-    attr_dict: Dict,
-    name: Str
+    pub attr_dict: Dict,
+    pub name: Str
+}
+
+impl KlassContainer {
+    pub fn new(attrs: &Object, name: &Object) -> Rc<Self> {
+        Rc::new(Self {
+            attr_dict: crate::cast!(attrs, Dict).clone(),
+            name: crate::cast!(name, Str).clone()
+        })
+    }
+
+    #[inline]
+    pub fn get_attr(&self, attr_name: &Object) -> Option<Object> {
+        self.attr_dict.get(attr_name)
+    }
+}
+
+impl std::fmt::Debug for KlassContainer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<KlassContainer {}>", &self.name)
+    }
+}
+
+impl std::fmt::Display for KlassContainer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.name)
+    }
 }
 
 impl Klass {

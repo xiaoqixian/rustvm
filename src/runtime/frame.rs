@@ -41,7 +41,8 @@ pub struct Frame {
     pub globals: Object,
     pub fast_locals: Option<RefCell<Vec<Object>>>,
     pub codes: Object,
-    pub sender: Option<Rc<Self>>
+    pub sender: Option<Rc<Self>>,
+    pub entry_frame: bool
 }
 
 impl Frame {
@@ -92,13 +93,18 @@ impl Frame {
                     stack: RefCell::new(Vec::new()),
                     loop_stack: RefCell::new(Vec::new()),
                     locals: RefCell::new(Dict::new()),
-                    globals: Dict::new(),
+                    globals: {
+                        let mut dict = Dict::raw_new();
+                        dict.put(Str::from("__name__"), Str::from("__main__"));
+                        Rc::new(dict)
+                    },
                     fast_locals: match args {
                         None => None,
                         Some(v) => Some(RefCell::new(v))
                     },
                     codes,
-                    sender
+                    sender,
+                    entry_frame: false
                 }
             },
             Klass::FunctionKlass => {
@@ -108,7 +114,7 @@ impl Frame {
                     stack: RefCell::new(Vec::new()),
                     loop_stack: RefCell::new(Vec::new()),
                     locals: RefCell::new(Dict::new()),
-                    globals: Dict::new(),
+                    globals: func.globals.as_ref().unwrap().clone(),
                     fast_locals: {
                         let mut arg_num = cast!(func.func_codes.as_ref().unwrap(), CodeObject).argcount;
                         let mut fast_locals = vec![BuiltinValue::new("None"); arg_num];
@@ -131,7 +137,8 @@ impl Frame {
                         Some(RefCell::new(fast_locals))
                     },
                     codes: func.func_codes.as_ref().unwrap().clone(),
-                    sender
+                    sender,
+                    entry_frame: false
                 }
             },
             _ => panic!("Invalid frame codes {:?}", codes)
@@ -149,11 +156,18 @@ impl Frame {
     }
 
     #[inline]
-    pub fn get_local(&self, name: Object) -> Object {
-        match self.locals.borrow().as_any().downcast_ref::<Dict>().unwrap().get(&name) {
-            None => panic!("{:?} not found in locals", name),
-            Some(v) => v.clone()
+    pub fn get_local(&self, name: Object) -> Option<Object> {
+        //first search locals
+        if let Some(v) = self.locals.borrow().as_any().downcast_ref::<Dict>().unwrap().get(&name) {
+            return Some(v.clone());
         }
+
+        crate::debug!("globals of the frame {:?}", self.globals);
+        //then search globals
+        if let Some(v) = self.globals.as_any().downcast_ref::<Dict>().unwrap().get(&name) {
+            return Some(v.clone());
+        }
+        None
     }
 
     #[inline]

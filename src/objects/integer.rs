@@ -42,6 +42,16 @@ impl ObjectTrait for Integer {
     fn klass(&self) -> Klass {
         Klass::IntegerKlass
     }
+
+    fn equal(&self, other: &Rc<dyn ObjectTrait>) -> bool {
+        match other.klass() {
+            Klass::IntegerKlass => {
+                let other_int = crate::cast!(other, Self);
+                self.inner == other_int.into()
+            },
+            _ => panic!("Invalid arg {:?}", other)
+        }
+    }
 }
 
 impl Display for Integer {

@@ -10,7 +10,7 @@
 use std::rc::Rc;
 use std::any::Any;
 
-use super::{Object, string::Str, klass::Klass, object::Object as ObjectTrait};
+use super::{Object, string::Str, klass::Klass, object::Object as ObjectTrait, map::Dict};
 use crate::cast;
 
 pub type NativeFuncPointer = dyn Fn(Vec<Object>) -> Option<Object>;
@@ -22,10 +22,11 @@ pub struct Function {
     pub func_name: Str,
     pub nfp: Option<&'static NativeFuncPointer>,
     pub defaults: Option<Vec<Object>>,
+    pub globals: Option<Object>// a dict, write on copy
 }
 
 impl Function {
-    pub fn from_code(codes_wrap: Object, defaults: Option<Vec<Object>>) -> Rc<Self> {
+    pub fn from_code(codes_wrap: Object, defaults: Option<Vec<Object>>, globals: Option<Object>) -> Rc<Self> {
         Rc::new(match codes_wrap.klass() {
             Klass::CodeKlass => {
                 let codes = cast!(codes_wrap, crate::code::code_object::CodeObject);
@@ -33,7 +34,8 @@ impl Function {
                     func_name: cast!(codes.co_name, Str).clone(),
                     func_codes: Some(codes_wrap),
                     nfp: None,
-                    defaults
+                    defaults,
+                    globals
                 }
             },
             _ => panic!("Invalid codes_wrap {:?}", codes_wrap)
@@ -45,7 +47,8 @@ impl Function {
             func_name: name,
             func_codes: None,
             nfp: Some(nfp),
-            defaults: None
+            defaults: None,
+            globals: None
         })
     }
 }

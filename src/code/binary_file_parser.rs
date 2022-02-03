@@ -117,6 +117,9 @@ impl BinaryFileParser {
                 'R' => {
                     list.push((*self.string_table.get(self.bis.read_usize()?).unwrap()).clone());
                 },
+                '(' => {
+                    list.push(crate::objects::list::List::from_vec(self.get_tuple()?));
+                },
                 _ => {
                     return Err(Errors::UnknownCharError(String::from(format!("{} at line {}", c, line!()))));
                 }
