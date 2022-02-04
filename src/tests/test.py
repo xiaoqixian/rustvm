@@ -24,6 +24,9 @@ class Own:
 
 o1 = Own(1, 2)
 o1.print_self()
+
+o2 = Own(3, 4)
+o2.print_self()
 # print Own
 # print list
 # o2 = Own(3, 4)

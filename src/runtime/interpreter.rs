@@ -96,6 +96,7 @@ impl Interpreter {
                 },
 
                 byte_code::LOAD_FAST => {
+                    debug!("load fast {:?}", self.frame.fast_locals.as_ref().unwrap().borrow()[op_arg]);
                     self.frame.stack.borrow_mut().push(self.frame.fast_locals.as_ref().unwrap().borrow()[op_arg].clone());
                 },
 
@@ -391,7 +392,12 @@ impl Interpreter {
                 byte_code::RETURN_VALUE => {
                     let ret_value = self.frame.stack.borrow_mut().pop().unwrap();
                     self.ret_value = Some(ret_value.clone());
-                    if self.frame.entry_frame {return Ok(())}
+                    if self.frame.entry_frame {
+                        if let Some(f) = &self.frame.sender {
+                            self.frame = f.clone();
+                        }
+                        return Ok(());
+                    }
                     match &self.frame.sender {
                         Some(f) => {
                             self.frame = f.clone();
@@ -443,9 +449,19 @@ impl Interpreter {
                 let tp = cast!(callable, TypeObject);
                 let ins = tp.allocate_instance();
                 if let Some(init) = ins.get_attr(ins.clone(), &Str::from("__init__")) {
-                    self.frame.stack.borrow_mut().push(ins);
-                    self.frame = Frame::new(cast!(init, Method).func.clone(), args, Some(self.frame.clone()));
+                    self.frame.stack.borrow_mut().push(ins.clone());
+
+                    let m_args = match args {
+                        None => Some(vec![ins; 1]),
+                        Some(v) => {
+                            let mut vd = VecDeque::from(v);
+                            vd.push_front(ins);
+                            Some(Vec::from(vd))
+                        }
+                    };
+                    self.frame = Frame::new(cast!(init, Method).func.clone(), m_args, Some(self.frame.clone()));
                     Rc::make_mut(&mut self.frame).entry_frame = true;
+                    self.run().unwrap();
                 }
             }
             v => panic!("Invalid callable klass {:?}", v)
